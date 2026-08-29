@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nate's Film Catalogue</title>
+<style>
+  :root{
+    --ink:#0e1118; --panel:#161b26; --panel-2:#1d2331; --rule:#2b3242;
+    --marquee:#f5a623; --marquee-dim:#a86f12; --seen:#4ec9a4;
+    --paper:#f0ebe0; --muted:#8c94a8; --warm:#e2725b; --cool:#7aa7e8;
+    --display:"Oswald","Haettenschweiler","Arial Narrow","Impact",sans-serif;
+    --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--ink);color:var(--paper);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;padding-bottom:70px}
+  .wrap{max-width:720px;margin:0 auto;padding:0 14px}
+
+  .head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .iconbtn{flex:0 0 auto;background:var(--panel-2);border:1px solid var(--rule);color:var(--marquee);border-radius:8px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+  .iconbtn:hover,.iconbtn:focus{border-color:var(--marquee)}
+  .iconbtn svg{width:20px;height:20px;display:block}
+  .backup-block{border-top:1px solid var(--rule);margin-top:18px;padding-top:16px}
+  .backup-block:first-of-type{border-top:0;margin-top:0;padding-top:0}
+  .backup-block h3{font-family:var(--display);text-transform:uppercase;letter-spacing:.09em;font-size:12px;color:var(--marquee);margin:0 0 6px;font-weight:600}
+  .backup-block p{font-size:13px;color:var(--muted);margin:0 0 11px;line-height:1.45}
+  input.idin{width:100%;background:var(--ink);color:var(--paper);border:1px solid var(--rule);border-radius:7px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  textarea.code{width:100%;height:90px;background:var(--ink);color:var(--paper);border:1px solid var(--rule);border-radius:7px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;resize:vertical}
+
+  header{padding:20px 0 14px;background:repeating-linear-gradient(90deg,rgba(245,166,35,.16) 0 6px,transparent 6px 22px) top/100% 3px no-repeat,var(--ink)}
+  h1{font-family:var(--display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:29px;line-height:1;margin:0 0 4px}
+  h1 .amp{color:var(--marquee)}
+  .tagline{color:var(--muted);font-size:12.5px;margin:0}
+  .progress{margin-top:14px}
+  .progress-bar{height:8px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--seen);width:0;transition:width .35s ease}
+  .progress-label{display:flex;justify-content:space-between;font-family:var(--display);letter-spacing:.08em;text-transform:uppercase;font-size:11.5px;color:var(--muted);margin-top:7px}
+  .progress-label b{color:var(--paper);font-weight:600}
+
+  /* tabs */
+  .tabs{position:sticky;top:0;z-index:30;background:var(--ink);border-bottom:1px solid var(--rule);display:flex;gap:0;margin-top:14px}
+  .tab{flex:1;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font-family:var(--display);text-transform:uppercase;letter-spacing:.07em;font-size:12px;padding:13px 2px;cursor:pointer;white-space:nowrap}
+  .tab[aria-selected="true"]{color:var(--marquee);border-bottom-color:var(--marquee)}
+  .tab .n{display:block;font-size:16px;color:inherit;font-weight:600;line-height:1.1}
+
+  .section-head{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:12.5px;color:var(--marquee);margin:20px 0 10px;font-weight:600}
+  .note{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+
+  /* stubs */
+  .stubs{display:grid;gap:9px;padding:2px 0 10px}
+  .stub{background:var(--paper);color:#1a1a1a;border:0;border-radius:3px;padding:11px 12px;text-align:left;font:inherit;cursor:pointer;position:relative;display:flex;gap:12px;align-items:flex-start;
+    background-image:radial-gradient(circle at 0 0,transparent 3px,var(--paper) 3.5px);background-size:100% 9px}
+  .stub:after{content:"";position:absolute;left:44px;top:9px;bottom:9px;border-left:1px dashed rgba(0,0,0,.28)}
+  .stub-no{font-family:var(--display);font-size:26px;line-height:1;font-weight:700;color:var(--marquee-dim);flex:0 0 32px}
+  .stub-body{flex:1;padding-left:10px;min-width:0}
+  .stub-title{font-weight:650;font-size:14px;line-height:1.25;display:block;margin-bottom:4px}
+  .stub-meta{font-size:11.5px;color:#5a5a5a}
+
+  /* controls */
+  .chips{display:flex;gap:7px;overflow-x:auto;padding:0 14px 10px;margin:0 -14px}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;background:transparent;border:1px solid var(--rule);color:var(--muted);font-family:var(--display);letter-spacing:.08em;text-transform:uppercase;font-size:11.5px;padding:7px 12px;border-radius:99px;cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--marquee);border-color:var(--marquee);color:#17130a;font-weight:600}
+  .row-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-bottom:10px}
+  select{background:var(--panel-2);color:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;font:inherit;font-size:13px}
+  .toggle{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);cursor:pointer}
+  .toggle input{accent-color:var(--seen);width:16px;height:16px}
+  .bulk{width:100%;margin:2px 0 12px;background:rgba(226,114,91,.12);border:1px solid rgba(226,114,91,.4);color:var(--warm);border-radius:7px;padding:10px;font-family:var(--display);text-transform:uppercase;letter-spacing:.07em;font-size:12px;cursor:pointer}
+
+  /* list */
+  ul.films{list-style:none;margin:0;padding:0}
+  li.film{display:flex;align-items:flex-start;gap:11px;padding:12px 2px;border-bottom:1px solid var(--rule)}
+  li.film.watched .film-title{text-decoration:line-through;color:var(--muted)}
+  li.film.watched .rating{opacity:.4}
+  .tick{flex:0 0 auto;width:26px;height:26px;margin-top:1px;border-radius:5px;border:1.5px solid var(--rule);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:transparent;font-size:15px;line-height:1}
+  .tick[aria-pressed="true"]{background:var(--seen);border-color:var(--seen);color:#0d2a22}
+  .film-body{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer}
+  .film-title{font-weight:600;font-size:14.5px;line-height:1.3;display:block}
+  .film-meta{font-size:12px;color:var(--muted);margin-top:3px}
+  .rating{flex:0 0 auto;font-family:var(--display);font-size:15px;font-weight:600;color:var(--marquee);margin-top:2px}
+  .badge{display:inline-block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-right:5px;vertical-align:2px;font-weight:600}
+  .badge.fav{background:rgba(245,166,35,.16);color:var(--marquee)}
+  .badge.maybe{background:rgba(122,167,232,.16);color:var(--cool)}
+  .badge.no{background:rgba(226,114,91,.16);color:var(--warm)}
+  .badge.new{background:rgba(78,201,164,.16);color:var(--seen)}
+  .empty{padding:34px 4px;color:var(--muted);text-align:center;font-size:14px}
+
+  /* history */
+  .log{list-style:none;margin:0;padding:0}
+  .log li{padding:12px 2px;border-bottom:1px solid var(--rule);display:flex;gap:11px;align-items:flex-start}
+  .log .when{flex:0 0 62px;font-family:var(--display);font-size:11.5px;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;padding-top:3px}
+  .log .what{flex:1;min-width:0}
+  .log .what b{display:block;font-weight:600;font-size:14.5px;line-height:1.3}
+  .log .sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .log .sub .swap{color:var(--seen)}
+  .mini{background:none;border:1px solid var(--rule);color:var(--muted);border-radius:5px;padding:6px 9px;font-size:11.5px;cursor:pointer;flex:0 0 auto;white-space:nowrap}
+  .mini:hover{color:var(--paper);border-color:var(--muted)}
+
+  /* sheet */
+  .sheet-bg{position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:40;display:none;align-items:flex-end;justify-content:center}
+  .sheet-bg.open{display:flex}
+  .sheet{background:var(--panel);width:100%;max-width:720px;max-height:88vh;overflow-y:auto;border-radius:14px 14px 0 0;border-top:3px solid var(--marquee);padding:20px 18px 28px;animation:rise .22s ease-out}
+  @keyframes rise{from{transform:translateY(18px);opacity:.4}to{transform:none;opacity:1}}
+  @media (prefers-reduced-motion:reduce){.sheet{animation:none}.progress-fill{transition:none}}
+  .sheet h2{font-family:var(--display);text-transform:uppercase;letter-spacing:.03em;font-size:22px;margin:0 0 6px;line-height:1.1}
+  .facts{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+  .fact{background:var(--panel-2);border:1px solid var(--rule);border-radius:5px;padding:5px 9px;font-size:12px;color:var(--muted)}
+  .fact b{color:var(--paper);font-weight:600}
+  .blurb{font-size:14.5px;line-height:1.55;margin:0 0 16px}
+  .tag-row{margin:0 0 16px}
+  .tag-label{font-family:var(--display);text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--muted);display:block;margin-bottom:7px}
+  .tag-opts{display:flex;gap:7px;flex-wrap:wrap}
+  .tagbtn{border:1px solid var(--rule);background:var(--panel-2);color:var(--muted);border-radius:99px;padding:8px 13px;font-size:12.5px;cursor:pointer}
+  .tagbtn[aria-pressed="true"].fav{background:var(--marquee);border-color:var(--marquee);color:#17130a;font-weight:600}
+  .tagbtn[aria-pressed="true"].maybe{background:var(--cool);border-color:var(--cool);color:#0a1626;font-weight:600}
+  .tagbtn[aria-pressed="true"].no{background:var(--warm);border-color:var(--warm);color:#26100b;font-weight:600}
+  .sheet-actions{display:flex;gap:9px;flex-wrap:wrap}
+  .btn{font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-size:12.5px;padding:11px 15px;border-radius:7px;border:1px solid var(--rule);background:var(--panel-2);color:var(--paper);cursor:pointer;text-decoration:none;display:inline-block}
+  .btn.primary{background:var(--marquee);border-color:var(--marquee);color:#17130a;font-weight:600}
+  .btn.done{background:var(--seen);border-color:var(--seen);color:#0d2a22;font-weight:600}
+  .btn.danger{border-color:rgba(226,114,91,.5);color:var(--warm)}
+
+  /* toast */
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:60;background:var(--panel-2);border:1px solid var(--rule);border-left:3px solid var(--seen);color:var(--paper);padding:11px 15px;border-radius:8px;font-size:13.5px;max-width:calc(100% - 28px);box-shadow:0 8px 24px rgba(0,0,0,.45);display:none}
+  .toast.show{display:block}
+
+  footer{border-top:1px solid var(--rule);margin-top:26px;padding:16px 0 10px;color:var(--muted);font-size:12px}
+  :focus-visible{outline:2px solid var(--marquee);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="head-row">
+      <div>
+        <h1>Nate's Film <span class="amp">Catalogue</span></h1>
+        <p class="tagline">Tag it, tick it, swap it out. The shelf stays at 150.</p>
+      </div>
+      <button class="iconbtn" id="backupBtn" title="Save or restore your progress" aria-label="Save or restore your progress">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/>
+          <path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>
+        </svg>
+      </button>
+    </div>
+    <div class="progress">
+      <div class="progress-bar"><div class="progress-fill" id="fill"></div></div>
+      <div class="progress-label">
+        <span><b id="countWatched">0</b> watched</span>
+        <span><b id="countLeft">150</b> to go</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" data-tab="catalogue" aria-selected="true"><span class="n" id="tabCat">150</span>Catalogue</button>
+  <button class="tab" role="tab" data-tab="next" aria-selected="false"><span class="n" id="tabNext">10</span>Up next</button>
+  <button class="tab" role="tab" data-tab="watched" aria-selected="false"><span class="n" id="tabWatched">0</span>Watched</button>
+  <button class="tab" role="tab" data-tab="removed" aria-selected="false"><span class="n" id="tabRemoved">0</span>Removed</button>
+</div>
+
+<main class="wrap">
+
+  <!-- CATALOGUE -->
+  <section id="panel-catalogue">
+    <div class="chips" id="chips"></div>
+    <div class="row-controls">
+      <select id="sort" aria-label="Sort films">
+        <option value="acclaim">Sort: most acclaimed</option>
+        <option value="year">Sort: newest first</option>
+        <option value="yearOld">Sort: oldest first</option>
+        <option value="title">Sort: A–Z</option>
+        <option value="short">Sort: shortest first</option>
+        <option value="tagged">Sort: tagged first</option>
+      </select>
+      <label class="toggle"><input type="checkbox" id="hideWatched"> Hide watched</label>
+    </div>
+    <button class="bulk" id="bulk" hidden></button>
+    <ul class="films" id="list"><li class="empty">If this is all you can see, the page's script hasn't run. Cloud storage previews (OneDrive, Google Drive, SharePoint) block scripts in files they display. Download the file and open it from your device instead.</li></ul>
+  </section>
+
+  <!-- UP NEXT -->
+  <section id="panel-next" hidden>
+    <p class="section-head">Ten best still unwatched</p>
+    <p class="note">Ranked by rating, ignoring anything tagged "not interested". Reshuffles every time you tick one off.</p>
+    <div class="stubs" id="stubs"></div>
+  </section>
+
+  <!-- WATCHED -->
+  <section id="panel-watched" hidden>
+    <p class="section-head">Watched history</p>
+    <p class="note" id="watchedNote"></p>
+    <ul class="log" id="watchedLog"></ul>
+  </section>
+
+  <!-- REMOVED -->
+  <section id="panel-removed" hidden>
+    <p class="section-head">Removed, and what replaced them</p>
+    <p class="note" id="removedNote"></p>
+    <ul class="log" id="removedLog"></ul>
+  </section>
+
+  <footer>
+    <p>Ratings and running times are approximate, from general knowledge rather than a live IMDb feed. Certificates are US ratings; PG-13 is roughly a UK 12A. Titles link to an IMDb search so they always land on the right page.</p>
+    <p id="saveNote">Ticks, tags and swaps save automatically. Use the save icon at the top to keep a copy as a file.</p>
+    <p><button class="mini" id="importV1">Bring across ticks from the first version</button>
+      <span style="margin-left:10px" id="appVer"></span></p>
+  </footer>
+</main>
+
+<input type="file" id="fileIn" accept="application/json,.json" hidden>
+<div class="sheet-bg" id="sheetBg"><div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* [title, year, cert, mins, rating, genre, blurb] */
+const SHELF = [
+["Mission: Impossible – Fallout",2018,"PG-13",147,7.7,"Action","Ethan Hunt hunts stolen plutonium. The stunts are real, and you can tell."],
+["Casino Royale",2006,"PG-13",144,8.0,"Action","Bond earns his licence. Lean, brutal, and the best foot chase ever filmed."],
+["Skyfall",2012,"PG-13",143,7.8,"Action","Bond goes home to Scotland with a vengeful ex-agent on his heels."],
+["Top Gun: Maverick",2022,"PG-13",130,8.2,"Action","Real jets, real G-force, one mission everyone says is impossible."],
+["The Bourne Ultimatum",2007,"PG-13",115,8.0,"Action","Bourne closes in on who made him. The Tangier rooftop chase is a classic."],
+["The Bourne Identity",2002,"PG-13",119,7.9,"Action","An amnesiac assassin works out what he is, one reflex at a time."],
+["The Bourne Supremacy",2004,"PG-13",108,7.7,"Action","Framed and hunted across Europe, ending in a bruising Moscow car chase."],
+["Crouching Tiger, Hidden Dragon",2000,"PG-13",120,7.9,"Action","Swordfights across rooftops and bamboo forests. Beautiful and thrilling."],
+["Hero",2002,"PG-13",99,7.9,"Action","A martial arts epic told four times over, each version in its own colour."],
+["The Fugitive",1993,"PG-13",130,7.8,"Action","A wrongly convicted doctor runs. A very good marshal follows."],
+["Mission: Impossible – Ghost Protocol",2011,"PG-13",132,7.4,"Action","The team is disavowed, and Cruise climbs the world's tallest building."],
+["Mission: Impossible – Rogue Nation",2015,"PG-13",131,7.4,"Action","Plane stunt, opera house standoff, underwater vault heist."],
+["Mission: Impossible",1996,"PG-13",110,7.1,"Action","The original: a betrayed team, a wire drop into a vault, a train roof finish."],
+["GoldenEye",1995,"PG-13",130,7.2,"Action","Tank chase through St Petersburg and a satellite weapon aimed at London."],
+["Ford v Ferrari",2019,"PG-13",152,8.1,"Action","Two stubborn men build a car to beat Ferrari at Le Mans."],
+["Godzilla Minus One",2023,"PG-13",125,7.8,"Action","Post-war Japan faces the monster with almost nothing. Surprisingly moving."],
+["The Karate Kid",1984,"PG",126,7.3,"Action","Wax on, wax off. Still the best underdog training montage there is."],
+["Top Gun",1986,"PG",110,6.9,"Action","Fighter pilots, beach volleyball and a gloriously 1980s soundtrack."],
+["Rush Hour",1998,"PG-13",98,7.0,"Action","Mismatched cops in LA, with Jackie Chan doing all his own everything."],
+["The Mask of Zorro",1998,"PG-13",136,6.7,"Action","Swashbuckling played straight, with a huge amount of charm."],
+["Twister",1996,"PG-13",113,6.4,"Action","Storm chasers drive directly into tornadoes, for science and spectacle."],
+["Jack Reacher",2012,"PG-13",130,7.0,"Action","A drifter investigator, a sniper case, and a superb night-time car chase."],
+["Live Free or Die Hard",2007,"PG-13",128,7.1,"Action","The PG-13 Die Hard: McClane versus a nationwide cyber-attack."],
+["The Great Escape",1963,"PG",172,8.2,"Action","POWs dig three tunnels. The motorbike jump is only half the story."],
+["No Time to Die",2021,"PG-13",163,7.3,"Action","Craig's final Bond, with a long-overdue reckoning coming for him."],
+["Red",2010,"PG-13",111,7.0,"Action","Retired spies get pulled back in and enjoy it enormously."],
+["The A-Team",2010,"PG-13",117,6.7,"Action","Absurd plans carried out with total commitment. A tank falls from a plane."],
+["Sherlock Holmes",2009,"PG-13",128,7.6,"Action","Holmes as a scrappy brawler who plans each fight in slow motion first."],
+["Sherlock Holmes: A Game of Shadows",2011,"PG-13",129,7.4,"Action","Moriarty, a forest chase under artillery fire, and a duel of chess moves."],
+["Raiders of the Lost Ark",1981,"PG",115,8.4,"Adventure","The blueprint for every adventure film since. Boulder, snakes, truck chase."],
+["Indiana Jones and the Last Crusade",1989,"PG-13",127,8.2,"Adventure","Indy and his dad chase the Grail and bicker their way across Europe."],
+["Jurassic Park",1993,"PG-13",127,8.2,"Adventure","Dinosaurs get out. Still the gold standard for tension and effects."],
+["The Lord of the Rings: The Return of the King",2003,"PG-13",201,9.0,"Adventure","The siege, the charge, the volcano. Save a whole evening for it."],
+["The Lord of the Rings: The Fellowship of the Ring",2001,"PG-13",178,8.9,"Adventure","Nine set out from Rivendell. The mines of Moria are the high point."],
+["The Lord of the Rings: The Two Towers",2002,"PG-13",179,8.8,"Adventure","Helm's Deep: one of the great battle sequences on film."],
+["Jaws",1975,"PG",124,8.1,"Adventure","Three men, one boat, one shark. Scary mostly through what you don't see."],
+["Harry Potter and the Deathly Hallows: Part 2",2011,"PG-13",130,8.1,"Adventure","The Battle of Hogwarts, and everything the series has built towards."],
+["Pirates of the Caribbean: The Curse of the Black Pearl",2003,"PG-13",143,8.1,"Adventure","Cursed skeleton pirates and Jack Sparrow's first, best outing."],
+["The Princess Bride",1987,"PG",98,8.0,"Adventure","Sword fights, giants and jokes. Endlessly quotable, never soppy."],
+["Harry Potter and the Prisoner of Azkaban",2004,"PG",142,7.9,"Adventure","The darker turn, with time travel and a werewolf. The best-looking one."],
+["Life of Pi",2012,"PG",127,7.9,"Adventure","A boy adrift on a lifeboat with a Bengal tiger. Extraordinary to look at."],
+["The Hobbit: An Unexpected Journey",2012,"PG-13",169,7.8,"Adventure","Thirteen dwarves, one burglar, and the riddle game in the dark."],
+["Hunt for the Wilderpeople",2016,"PG-13",101,7.8,"Adventure","A city kid and a grumpy bushman on the run in the New Zealand wild."],
+["The Goonies",1985,"PG",114,7.7,"Adventure","Kids find a pirate map and go looking. Booby traps and a shipwreck."],
+["Apollo 13",1995,"PG",140,7.7,"Adventure","A crippled spacecraft and the engineers on the ground solving it."],
+["Indiana Jones and the Temple of Doom",1984,"PG",118,7.5,"Adventure","Mine cart chase, rope bridge, and the darkest Indy by some distance."],
+["Master and Commander: The Far Side of the World",2003,"PG-13",138,7.4,"Adventure","A Royal Navy frigate hunts a faster ship around Cape Horn."],
+["The Adventures of Tintin",2011,"PG",107,7.3,"Adventure","A single unbroken chase through a Moroccan town is worth the ticket."],
+["Jumanji",1995,"PG",104,7.1,"Adventure","A board game empties the jungle into a suburban house."],
+["The Mummy",1999,"PG-13",124,7.1,"Adventure","Pulpy Egyptian treasure hunt with a resurrected high priest in pursuit."],
+["Jumanji: Welcome to the Jungle",2017,"PG-13",119,6.9,"Adventure","Teenagers get sucked into a video game as wildly wrong avatars."],
+["Inception",2010,"PG-13",148,8.8,"Sci-Fi","A heist inside someone's dreams, with a corridor fight in zero gravity."],
+["Star Wars: The Empire Strikes Back",1980,"PG",124,8.7,"Sci-Fi","Walkers on Hoth, an asteroid chase, and the reveal. The best one."],
+["Interstellar",2014,"PG-13",169,8.7,"Sci-Fi","A farmer flies through a wormhole to find humanity somewhere else."],
+["Star Wars: A New Hope",1977,"PG",121,8.6,"Sci-Fi","Where it starts. A farm boy, a smuggler, and a trench run."],
+["Dune: Part Two",2024,"PG-13",166,8.5,"Sci-Fi","Sandworm riding, desert warfare, and a stunning piece of world-building."],
+["Star Wars: Return of the Jedi",1983,"PG",131,8.3,"Sci-Fi","Speeder bikes through the forest and the throne room showdown."],
+["Dune",2021,"PG-13",155,8.0,"Sci-Fi","A noble family takes over the spice planet and is betrayed."],
+["The Martian",2015,"PG-13",144,8.0,"Sci-Fi","Stranded on Mars, one astronaut science-es his way out. Genuinely funny."],
+["E.T. the Extra-Terrestrial",1982,"PG",115,7.9,"Sci-Fi","A boy hides an alien in his bedroom, then rides a bike across the moon."],
+["Arrival",2016,"PG-13",116,7.9,"Sci-Fi","Twelve ships land and a linguist has to work out how to talk to them."],
+["Edge of Tomorrow",2014,"PG-13",113,7.9,"Sci-Fi","A soldier dies in an alien invasion and restarts the day, over and over."],
+["Star Trek",2009,"PG-13",127,7.9,"Sci-Fi","The crew's origin story, played fast and loud. No Trek homework needed."],
+["Avatar",2009,"PG-13",162,7.9,"Sci-Fi","A marine in an alien body goes native on a moon worth mining."],
+["Back to the Future Part II",1989,"PG",108,7.8,"Sci-Fi","Hoverboards, a sports almanac, and a plot that folds into the first film."],
+["Rogue One: A Star Wars Story",2016,"PG-13",133,7.8,"Sci-Fi","How the Death Star plans were stolen. The last ten minutes are superb."],
+["Star Wars: The Force Awakens",2015,"PG-13",138,7.8,"Sci-Fi","A scavenger, a defecting stormtrooper and the Falcon back in the air."],
+["Star Trek II: The Wrath of Khan",1982,"PG",113,7.7,"Sci-Fi","Submarine warfare in space against an old enemy with a long memory."],
+["Gravity",2013,"PG-13",91,7.7,"Sci-Fi","Debris destroys a shuttle and one astronaut has to get home. Ninety tense minutes."],
+["Close Encounters of the Third Kind",1977,"PG",138,7.6,"Sci-Fi","Ordinary people are drawn to a mountain by something they can't explain."],
+["Minority Report",2002,"PG-13",145,7.6,"Sci-Fi","Police arrest people before they offend, until the system names its own cop."],
+["The Fifth Element",1997,"PG-13",126,7.6,"Sci-Fi","A flying-taxi driver, an opera-singing alien, and a lot of colour."],
+["Source Code",2011,"PG-13",93,7.5,"Sci-Fi","Eight minutes on a doomed train, repeated until he finds the bomber."],
+["Ready Player One",2018,"PG-13",140,7.4,"Sci-Fi","A treasure hunt inside a virtual world stuffed with references."],
+["Men in Black",1997,"PG-13",98,7.3,"Sci-Fi","Secret agents police the aliens already living in New York."],
+["I, Robot",2004,"PG-13",115,7.1,"Sci-Fi","A detective who distrusts robots investigates one accused of murder."],
+["Independence Day",1996,"PG-13",145,7.0,"Sci-Fi","Alien ships park over every city. Big, daft and very entertaining."],
+["Real Steel",2011,"PG-13",127,7.0,"Sci-Fi","Robot boxing, and a father and son with a scrapyard underdog."],
+["Jurassic World",2015,"PG-13",124,6.9,"Sci-Fi","The park finally opens, then engineers a dinosaur that shouldn't exist."],
+["Pacific Rim",2013,"PG-13",131,6.9,"Sci-Fi","Giant piloted robots punch giant monsters. Exactly as advertised."],
+["Tron: Legacy",2010,"PG",125,6.8,"Sci-Fi","Inside the grid: light cycles, disc battles and a tremendous score."],
+["The Dark Knight",2008,"PG-13",152,9.0,"Superhero","Batman against the Joker. Closer to a crime thriller than a comic film."],
+["Avengers: Infinity War",2018,"PG-13",149,8.4,"Superhero","Everyone loses. The one where the villain gets the whole story."],
+["Avengers: Endgame",2019,"PG-13",181,8.4,"Superhero","The payoff to a decade of films. Watch Infinity War first."],
+["The Dark Knight Rises",2012,"PG-13",164,8.4,"Superhero","Bane breaks Gotham and Batman has to climb out of a pit to fix it."],
+["Batman Begins",2005,"PG-13",140,8.2,"Superhero","How he trained, why the bat, and a city rotting from the inside."],
+["Spider-Man: No Way Home",2021,"PG-13",148,8.2,"Superhero","A botched spell pulls in villains from other universes. Big crowd-pleaser."],
+["The Avengers",2012,"PG-13",143,8.0,"Superhero","The team assembles and argues before the Battle of New York."],
+["Guardians of the Galaxy",2014,"PG-13",121,8.0,"Superhero","A talking raccoon, a tree, and a mixtape. Funniest of the Marvel films."],
+["Iron Man",2008,"PG-13",126,7.9,"Superhero","A weapons dealer builds a suit in a cave and changes his mind about everything."],
+["Thor: Ragnarok",2017,"PG-13",130,7.9,"Superhero","Gladiator fights on a junk planet, played almost entirely for laughs."],
+["X-Men: Days of Future Past",2014,"PG-13",132,7.9,"Superhero","Time travel to stop a war, with the best Quicksilver scene in any film."],
+["Guardians of the Galaxy Vol. 3",2023,"PG-13",150,7.9,"Superhero","Rocket's backstory, a corridor fight, and a proper send-off."],
+["The Batman",2022,"PG-13",176,7.8,"Superhero","A rain-soaked detective story with the Riddler leaving puzzles at crime scenes."],
+["Captain America: The Winter Soldier",2014,"PG-13",136,7.8,"Superhero","A 1970s-style conspiracy thriller that happens to have a shield in it."],
+["Spider-Man 2",2004,"PG-13",127,7.5,"Superhero","Doc Ock, a runaway train, and the film that got the balance right first."],
+["Doctor Strange",2016,"PG-13",115,7.5,"Superhero","A surgeon learns magic and cities start folding in on themselves."],
+["Spider-Man: Homecoming",2017,"PG-13",133,7.4,"Superhero","Peter Parker as an actual teenager, with the Vulture running a scrap business."],
+["Shang-Chi and the Legend of the Ten Rings",2021,"PG-13",132,7.4,"Superhero","The best hand-to-hand fighting Marvel has done. Bus fight, scaffold fight."],
+["Superman",1978,"PG",143,7.4,"Superhero","The one that made audiences believe a man could fly. Still charming."],
+["Black Panther",2018,"PG-13",134,7.3,"Superhero","A hidden nation, a throne fight, and a villain with a point."],
+["Wonder Woman",2017,"PG-13",141,7.3,"Superhero","An island of warriors, then the Western Front. The No Man's Land scene."],
+["Back to the Future",1985,"PG",116,8.5,"Comedy","A teenager drives a DeLorean into 1955 and nearly erases himself."],
+["Monty Python and the Holy Grail",1975,"PG",91,8.2,"Comedy","Coconuts, a rude Frenchman and a killer rabbit. Nonsense of the highest order."],
+["The Truman Show",1998,"PG",103,8.2,"Comedy","A man discovers his entire town is a TV set built around him."],
+["Paddington 2",2017,"PG",103,8.2,"Comedy","A bear, a stolen pop-up book and a prison break. Sharper than it sounds."],
+["Catch Me If You Can",2002,"PG-13",141,8.1,"Comedy","A teenage con man forges cheques while an FBI agent chases him."],
+["Groundhog Day",1993,"PG",101,8.0,"Comedy","A weatherman relives the same day until he works out why."],
+["Knives Out",2019,"PG-13",130,7.9,"Comedy","A murder mystery with a huge cast and a detective with a strange accent."],
+["Ghostbusters",1984,"PG",105,7.8,"Comedy","Three academics start a paranormal pest-control business in New York."],
+["Ferris Bueller's Day Off",1986,"PG-13",103,7.8,"Comedy","One skipped school day, executed like a heist."],
+["Airplane!",1980,"PG",88,7.7,"Comedy","A joke every four seconds. Surely you've seen it."],
+["Home Alone",1990,"PG",103,7.7,"Comedy","A kid left behind defends the house with increasingly violent DIY."],
+["Ocean's Eleven",2001,"PG-13",116,7.7,"Comedy","Eleven crooks rob three casinos at once, very smoothly."],
+["Galaxy Quest",1999,"PG",102,7.4,"Comedy","Washed-up sci-fi actors are mistaken for real heroes by real aliens."],
+["Clue",1985,"PG",94,7.3,"Comedy","The board game as a farce, with three different endings."],
+["Big",1988,"PG",104,7.3,"Comedy","A boy wishes to be grown up and wakes up thirty. The piano scene."],
+["Paddington",2014,"PG",95,7.3,"Comedy","A Peruvian bear arrives at a London station and moves in."],
+["School of Rock",2003,"PG-13",109,7.1,"Comedy","A failed guitarist fakes his way into teaching and forms a band."],
+["Elf",2003,"PG",97,7.1,"Comedy","A human raised by elves goes to New York looking for his dad."],
+["Free Guy",2021,"PG-13",115,7.1,"Comedy","A background character in a video game realises he can do whatever he likes."],
+["Glass Onion",2022,"PG-13",139,7.1,"Comedy","A tech billionaire's murder-mystery weekend goes wrong for him."],
+["Wayne's World",1992,"PG-13",94,7.0,"Comedy","Two friends with a basement TV show get discovered. Party on."],
+["Mrs. Doubtfire",1993,"PG-13",125,7.0,"Comedy","A dad disguises himself as a housekeeper to see his kids."],
+["Cool Runnings",1993,"PG",98,7.0,"Comedy","The Jamaican bobsled team goes to the Winter Olympics."],
+["Bill & Ted's Excellent Adventure",1989,"PG",90,6.9,"Comedy","Two slackers borrow a time machine to pass a history exam."],
+["Napoleon Dynamite",2004,"PG",96,6.9,"Comedy","A deadpan oddity about a school election and a dance routine."],
+["Dodgeball: A True Underdog Story",2004,"PG-13",92,6.7,"Comedy","A scruffy gym enters a tournament against a corporate chain."],
+["Enola Holmes",2020,"PG-13",123,6.6,"Comedy","Sherlock's younger sister solves her own case and out-thinks him."],
+["Night at the Museum",2006,"PG",108,6.4,"Comedy","A night guard discovers the exhibits come alive after dark."],
+["Spirited Away",2001,"PG",125,8.6,"Animated","A girl is trapped in a bathhouse for spirits and has to work her way out."],
+["Spider-Man: Across the Spider-Verse",2023,"PG",140,8.5,"Animated","Every universe drawn in its own style. Visually unlike anything else."],
+["Spider-Man: Into the Spider-Verse",2018,"PG",117,8.4,"Animated","Miles Morales meets five other Spider-People. A leap of faith."],
+["WALL·E",2008,"G",98,8.4,"Animated","A rubbish-collecting robot alone on Earth finds something worth saving."],
+["Toy Story 3",2010,"G",103,8.3,"Animated","The toys end up in a daycare run like a prison. A proper escape film."],
+["Princess Mononoke",1997,"PG-13",134,8.3,"Animated","Forest gods against an iron town. Serious, violent and beautiful."],
+["Up",2009,"PG",96,8.3,"Animated","A house lifted by balloons, a stowaway scout and a lost explorer."],
+["Klaus",2019,"PG",96,8.2,"Animated","A lazy postman on a feuding island invents Christmas by accident."],
+["The Iron Giant",1999,"PG",86,8.1,"Animated","A boy hides a giant robot from the army in 1950s Maine."],
+["How to Train Your Dragon",2010,"PG",98,8.1,"Animated","A Viking boy befriends the dragon he was meant to kill. Great flying scenes."],
+["Monsters, Inc.",2001,"G",92,8.1,"Animated","Monsters scare children for electricity, until one child gets through."],
+["The Incredibles",2004,"PG",115,8.0,"Animated","A family of retired superheroes back in the field. No capes."],
+["Zootopia",2016,"PG",108,8.0,"Animated","A rabbit cop and a fox con artist crack a conspiracy in an animal city."],
+["Castle in the Sky",1986,"PG",125,8.0,"Animated","Sky pirates, a floating fortress and a girl with a glowing stone."],
+["Big Hero 6",2014,"PG",102,7.8,"Animated","A boy genius and an inflatable medical robot form a team."],
+["Puss in Boots: The Last Wish",2022,"PG",102,7.8,"Animated","On his final life, with a genuinely frightening wolf on his trail."],
+["Batman: Mask of the Phantasm",1993,"PG",76,7.8,"Animated","The animated series on film, and one of the best Batman stories full stop."],
+["The Lego Movie",2014,"PG",100,7.7,"Animated","Everything is awesome until an ordinary minifigure is mistaken for a hero."],
+["Kung Fu Panda",2008,"PG",92,7.6,"Animated","A noodle-shop panda is picked as the chosen one. Excellent fight scenes."],
+["The Mitchells vs. the Machines",2021,"PG",113,7.6,"Animated","A family road trip during the robot apocalypse. Very fast, very funny."]
+];
+
+/* Reserve bench — swapped in automatically when something is removed */
+const BENCH = [
+["Mission: Impossible – Dead Reckoning Part One",2023,"PG-13",163,7.7,"Action","A runaway train, a cliff jump, and an enemy that is pure software."],
+["Police Story",1985,"PG-13",101,7.5,"Action","Jackie Chan at full tilt. The shopping centre finale is astonishing."],
+["Fast Five",2011,"PG-13",130,7.3,"Action","The crew drags a bank vault through Rio on two cars."],
+["Tenet",2020,"PG-13",150,7.3,"Action","A fight where one man moves backwards through time. Watch it twice."],
+["Furious 7",2015,"PG-13",137,7.1,"Action","Cars parachute out of a plane. Physics is not invited."],
+["The Italian Job",2003,"PG-13",111,7.0,"Action","A gold heist and three Mini Coopers loose in Los Angeles."],
+["The Fast and the Furious",2001,"PG-13",106,6.8,"Action","Street racing, truck hijacks, and where the whole thing started."],
+["Shanghai Noon",2000,"PG-13",110,6.6,"Action","A Chinese guard and a useless outlaw team up in the Old West."],
+["The Hobbit: The Desolation of Smaug",2013,"PG-13",161,7.8,"Adventure","Barrel escape down the river, then a dragon with a very good voice."],
+["Harry Potter and the Philosopher's Stone",2001,"PG",152,7.7,"Adventure","The first trip to Hogwarts, trolls, chess and all."],
+["Harry Potter and the Goblet of Fire",2005,"PG-13",157,7.7,"Adventure","A dragon, a lake and a maze. The series grows up here."],
+["Harry Potter and the Half-Blood Prince",2009,"PG",153,7.6,"Adventure","Quidditch, memories, and a very bad night on a tower."],
+["Hugo",2011,"PG",126,7.5,"Adventure","A boy living inside a Paris station clock and a broken automaton."],
+["The Jungle Book",2016,"PG",106,7.4,"Adventure","Mowgli, a tiger with a grudge, and photoreal animals."],
+["Pirates of the Caribbean: Dead Man's Chest",2006,"PG-13",151,7.3,"Adventure","The wheel fight, the kraken, and Davy Jones."],
+["The Chronicles of Narnia: The Lion, the Witch and the Wardrobe",2005,"PG",143,6.9,"Adventure","Four children, a wardrobe, and a battle for a frozen country."],
+["Planet of the Apes",1968,"G",112,8.0,"Sci-Fi","Astronauts land where apes rule. That ending still lands."],
+["Star Trek Into Darkness",2013,"PG-13",132,7.7,"Sci-Fi","A one-man weapon takes on Starfleet from the inside."],
+["Rise of the Planet of the Apes",2011,"PG-13",105,7.6,"Sci-Fi","A lab chimp gets smarter, then organises. The bridge sequence is superb."],
+["Star Wars: Revenge of the Sith",2005,"PG-13",140,7.6,"Sci-Fi","How Anakin falls. The prequel that actually delivers."],
+["Dawn of the Planet of the Apes",2014,"PG-13",130,7.6,"Sci-Fi","Two species try for peace and both have someone who won't have it."],
+["Contact",1997,"PG",150,7.5,"Sci-Fi","A signal arrives with blueprints. Thoughtful, patient science fiction."],
+["A Quiet Place",2018,"PG-13",90,7.5,"Sci-Fi","A family survives by silence. Tense rather than gory — check his nerve first."],
+["Oblivion",2013,"PG-13",124,7.0,"Sci-Fi","A drone repairman on an abandoned Earth starts asking questions."],
+["Captain America: Civil War",2016,"PG-13",147,7.8,"Superhero","The airport fight, twelve heroes deep, and nobody is quite wrong."],
+["X-Men: First Class",2011,"PG-13",131,7.7,"Superhero","The 1960s origin, with the Cuban Missile Crisis as the backdrop."],
+["Spider-Man",2002,"PG-13",121,7.4,"Superhero","The original Raimi film. Green Goblin, upside-down kiss, great heart."],
+["X2: X-Men United",2003,"PG-13",134,7.4,"Superhero","A raid on the mansion and Nightcrawler's opening set piece."],
+["Ant-Man",2015,"PG-13",117,7.3,"Superhero","A heist film at half an inch tall, with a toy train finale."],
+["Avengers: Age of Ultron",2015,"PG-13",141,7.3,"Superhero","A peacekeeping AI decides peace means fewer people."],
+["Man of Steel",2013,"PG-13",143,7.1,"Superhero","Superman's origin, played heavy, with a city-levelling fight."],
+["Thor",2011,"PG-13",115,7.0,"Superhero","A god is exiled to New Mexico and has to earn the hammer back."],
+["3 Idiots",2009,"PG-13",170,8.4,"Comedy","Three engineering students against a brutal college. Funny and moving."],
+["Beetlejuice",1988,"PG",92,7.5,"Comedy","A dead couple hire a revolting ghost to scare off the new owners."],
+["Dumb and Dumber",1994,"PG-13",107,7.3,"Comedy","Two idiots drive a briefcase across America. The stupidest good film."],
+["The Mask",1994,"PG-13",101,6.9,"Comedy","A bank clerk finds a mask that turns him into a cartoon."],
+["Liar Liar",1997,"PG-13",86,6.9,"Comedy","A lawyer physically cannot lie for 24 hours. Jim Carrey at full volume."],
+["Uncle Buck",1989,"PG",100,6.9,"Comedy","A slobby uncle babysits and turns out to be exactly right for the job."],
+["Bruce Almighty",2003,"PG-13",101,6.8,"Comedy","A complaining reporter is handed God's powers for a week."],
+["Ghostbusters II",1989,"PG",108,6.6,"Comedy","A river of slime under New York and the Statue of Liberty on the move."],
+["The Lion King",1994,"G",88,8.5,"Animated","A cub loses his father and has to go back. The stampede still hurts."],
+["Coco",2017,"PG",105,8.4,"Animated","A boy crosses into the land of the dead to find his great-grandfather."],
+["Toy Story",1995,"G",81,8.3,"Animated","The one that started it. A cowboy and a spaceman learn to share a room."],
+["Finding Nemo",2003,"G",100,8.2,"Animated","A clownfish crosses an ocean for his son, with a forgetful sidekick."],
+["Howl's Moving Castle",2004,"PG",119,8.2,"Animated","A cursed girl, a walking castle and a wizard who won't grow up."],
+["Inside Out",2015,"PG",95,8.1,"Animated","Five emotions run a girl's head and two of them get lost."],
+["Ratatouille",2007,"G",111,8.1,"Animated","A rat cooks in a Paris kitchen by steering a hopeless human."],
+["How to Train Your Dragon 2",2014,"PG",102,7.8,"Animated","Five years on, dragon riders face an army and pay a real price."]
+];
+
+const ALL = SHELF.concat(BENCH).map((r,i)=>({
+  id:i, title:r[0], year:r[1], cert:r[2], mins:r[3], rating:r[4], genre:r[5], blurb:r[6],
+  imdb:"https://www.imdb.com/find/?q="+encodeURIComponent(r[0]+" "+r[1])+"&s=tt"
+}));
+const SHELF_N = SHELF.length;
+const GENRES = ["All","Action","Adventure","Sci-Fi","Superhero","Comedy","Animated"];
+const TAGS = {fav:"Favourite", maybe:"Maybe later", no:"Not interested"};
+const APP_VERSION = "3.0";
+const KEY = "nate-film-catalogue-v2";
+
+let state = {
+  shelf: Array.from({length:SHELF_N},(_,i)=>i), // ids currently in the catalogue
+  watched: {},   // id -> ISO date
+  tags: {},      // id -> 'fav' | 'maybe' | 'no'
+  log: [],       // {id, date, tag, swapIn}
+  saveNo: 0,     // increments every time a backup file is written
+  savedAt: null  // when that last backup was written
+};
+let ui = {tab:"catalogue", genre:"All", sort:"acclaim", hide:false};
+
+/* ---------- storage ---------- */
+/* Two places to save. Inside Claude there's window.storage; in an ordinary
+   browser there isn't, so fall back to the browser's own storage. Both are
+   wrapped, because a file opened straight from disk can block either one. */
+function lsGet(k){ try{ return window.localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ window.localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+
+async function load(){
+  let raw = null;
+  try{
+    const r = await window.storage.get(KEY);
+    if(r && r.value) raw = r.value;
+  }catch(e){ /* not running inside Claude */ }
+  if(!raw) raw = lsGet(KEY);
+  if(raw){ try{ Object.assign(state, JSON.parse(raw)); }catch(e){ /* unreadable, start fresh */ } }
+
+  const canStore = !!window.storage || lsSet(KEY+"-probe","1");
+  document.getElementById("saveNote").textContent = canStore
+    ? "Ticks, tags and swaps save in this browser. Use the save icon to keep a copy as a file."
+    : "This browser is blocking storage, so ticks won't survive a reload. Use the save icon to keep a file instead.";
+
+  if(!raw) await migrateFromV1(false);
+  if(FS_OK){
+    try{ const h=await idbGet("handle"); if(h) fileHandle=h; }catch(e){ /* no linked file */ }
+  }
+  // Coming back from a Microsoft sign-in?
+  const qs=new URLSearchParams(location.search);
+  if(qs.get("code")){
+    try{
+      await msExchange(qs.get("code"));
+      history.replaceState({},"",redirectUri());
+      state.cloudAuto=true; save();
+      toast("Signed in to OneDrive.");
+      await cloudPull(false);
+    }catch(e){
+      history.replaceState({},"",redirectUri());
+      toast("Sign-in didn't complete. Check the app ID and redirect address.");
+    }
+  }else if(qs.get("error")){
+    history.replaceState({},"",redirectUri());
+    toast("Microsoft returned: "+qs.get("error"));
+  }else{
+    cloudCheck();
+  }
+}
+
+/* Pull ticks and removals across from the first version of the catalogue.
+   The first 150 films here are the same films in the same order, so the
+   saved ids line up exactly. v1 had no tags, so anything removed there is
+   brought across tagged "not interested". */
+async function migrateFromV1(manual){
+  let raw = null;
+  try{
+    const r = await window.storage.get("nate-film-catalogue-v1");
+    raw = r && r.value;
+  }catch(e){ raw = null; }
+  if(!raw) raw = lsGet("nate-film-catalogue-v1");
+  if(!raw){
+    if(manual) toast("No save from the first version found here. It may be stored against that file only.");
+    return false;
+  }
+  let old;
+  try{ old = JSON.parse(raw); }
+  catch(e){ if(manual) toast("Found a save from the first version but couldn't read it."); return false; }
+
+  let w=0, rm=0;
+  (old.watched||[]).forEach(id=>{
+    if(id>=0 && id<SHELF_N && !(id in state.watched)){ state.watched[id]=null; w++; }
+  });
+  (old.removed||[]).forEach(id=>{
+    if(id<0 || id>=SHELF_N) return;
+    if(!state.shelf.includes(id)) return;
+    state.tags[id]="no";
+    const swap = pickReplacement(F(id).genre);
+    state.shelf = state.shelf.filter(x=>x!==id);
+    if(swap!==null) state.shelf.push(swap);
+    state.log.unshift({id, date:null, tag:"no", swapIn:swap, from:"v1"});
+    delete state.watched[id];
+    rm++;
+  });
+
+  if(!w && !rm){ if(manual) toast("Nothing new to bring across — already up to date."); return false; }
+  await save(); render();
+  toast("Brought across "+w+" watched and "+rm+" removed from the first version.");
+  return true;
+}
+async function save(){
+  scheduleLinked();
+  scheduleCloud();
+  const payload = JSON.stringify(state);
+  lsSet(KEY, payload);
+  if(!window.storage) return;
+  try{ await window.storage.set(KEY, payload); }
+  catch(e){ /* the browser copy written above is the fallback */ }
+}
+
+/* ---------- helpers ---------- */
+const F = id => ALL[id];
+const onShelf = () => state.shelf.map(F);
+const isWatched = id => !!state.watched[id];
+const tagOf = id => state.tags[id] || null;
+const fmt = iso => iso ? new Date(iso).toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "Earlier";
+const fmtLong = iso => iso ? new Date(iso).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}) : "before this version";
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove("show"), 3600);
+}
+
+function pickReplacement(genre){
+  const pool = ALL.filter(f=>!state.shelf.includes(f.id));
+  if(!pool.length) return null;
+  const same = pool.filter(f=>f.genre===genre);
+  const from = same.length ? same : pool;
+  return from.sort((a,b)=>b.rating-a.rating)[0].id;
+}
+
+function sortFilms(a){
+  const arr = a.slice();
+  switch(ui.sort){
+    case "year":    return arr.sort((x,y)=>y.year-x.year||y.rating-x.rating);
+    case "yearOld": return arr.sort((x,y)=>x.year-y.year||y.rating-x.rating);
+    case "title":   return arr.sort((x,y)=>x.title.localeCompare(y.title));
+    case "short":   return arr.sort((x,y)=>x.mins-y.mins);
+    case "tagged":  { const o={fav:0,maybe:1,no:2}; return arr.sort((x,y)=>
+                      (o[tagOf(x.id)]??3)-(o[tagOf(y.id)]??3) || y.rating-x.rating); }
+    default:        return arr.sort((x,y)=>y.rating-x.rating||x.year-y.year);
+  }
+}
+
+/* ---------- actions ---------- */
+function toggleWatched(id){
+  if(isWatched(id)) delete state.watched[id];
+  else state.watched[id] = new Date().toISOString();
+  save(); render();
+  const bg=document.getElementById("sheetBg");
+  if(bg.classList.contains("open") && bg.dataset.film==String(id)) openSheet(id);
+}
+function setTag(id, tag){
+  if(state.tags[id]===tag) delete state.tags[id]; else state.tags[id]=tag;
+  save(); render();
+  const bg=document.getElementById("sheetBg");
+  if(bg.classList.contains("open") && bg.dataset.film==String(id)) openSheet(id);
+}
+function removeFilm(id, quiet){
+  const f = F(id);
+  if(!quiet && !confirm('Remove "'+f.title+'" and swap in a replacement?')) return false;
+  const swap = pickReplacement(f.genre);
+  state.shelf = state.shelf.filter(x=>x!==id);
+  if(swap!==null) state.shelf.push(swap);
+  state.log.unshift({id, date:new Date().toISOString(), tag:tagOf(id), swapIn:swap});
+  delete state.watched[id];
+  save(); closeSheet(); render();
+  if(!quiet) toast(swap!==null
+    ? f.title+" out. "+F(swap).title+" swapped in."
+    : f.title+" removed. The reserve bench is empty, so the catalogue is now "+state.shelf.length+".");
+  return true;
+}
+function removeAllTagged(){
+  const ids = state.shelf.filter(id=>tagOf(id)==="no");
+  if(!ids.length) return;
+  if(!confirm("Remove "+ids.length+' film'+(ids.length>1?"s":"")+' tagged "not interested" and swap in replacements?')) return;
+  ids.forEach(id=>removeFilm(id,true));
+  toast(ids.length+" removed, "+ids.length+" swapped in from the reserve list.");
+}
+function restore(entry){
+  const i = state.log.indexOf(entry);
+  const swap = entry.swapIn;
+  let msg = F(entry.id).title+" is back on the shelf.";
+  if(swap!==null && swap!==undefined && state.shelf.includes(swap) && !isWatched(swap) && !tagOf(swap)){
+    state.shelf = state.shelf.filter(x=>x!==swap);
+    msg += " "+F(swap).title+" went back to the reserve list.";
+  }else if(swap!==null && swap!==undefined){
+    msg += " Its replacement stays, so the catalogue is now "+(state.shelf.length+1)+".";
+  }
+  state.shelf.push(entry.id);
+  if(i>-1) state.log.splice(i,1);
+  save(); render(); toast(msg);
+}
+
+/* ---------- render ---------- */
+function renderCounts(){
+  const shelf = onShelf();
+  const seen = shelf.filter(f=>isWatched(f.id)).length;
+  document.getElementById("countWatched").textContent = seen;
+  document.getElementById("countLeft").textContent = shelf.length-seen;
+  document.getElementById("fill").style.width = shelf.length ? (seen/shelf.length*100)+"%" : "0%";
+  document.getElementById("tabCat").textContent = shelf.length;
+  document.getElementById("tabWatched").textContent = Object.keys(state.watched).length;
+  document.getElementById("tabRemoved").textContent = state.log.length;
+  document.getElementById("tabNext").textContent =
+    Math.min(10, shelf.filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no").length);
+}
+
+function renderChips(){
+  const box=document.getElementById("chips"); box.innerHTML="";
+  const shelf = onShelf();
+  GENRES.forEach(g=>{
+    const n = g==="All" ? shelf.length : shelf.filter(f=>f.genre===g).length;
+    const b=document.createElement("button");
+    b.className="chip"; b.type="button";
+    b.setAttribute("aria-pressed", ui.genre===g);
+    b.textContent=g+" "+n;
+    b.onclick=()=>{ui.genre=g;render();};
+    box.appendChild(b);
+  });
+}
+
+function renderList(){
+  const ul=document.getElementById("list"); ul.innerHTML="";
+  const bulk=document.getElementById("bulk");
+  const nTagged = state.shelf.filter(id=>tagOf(id)==="no").length;
+  bulk.hidden = nTagged===0;
+  bulk.textContent = "Remove "+nTagged+' tagged "not interested" and swap in replacements';
+  bulk.onclick = removeAllTagged;
+
+  let films = onShelf();
+  if(ui.genre!=="All") films=films.filter(f=>f.genre===ui.genre);
+  if(ui.hide) films=films.filter(f=>!isWatched(f.id));
+  films = sortFilms(films);
+
+  if(!films.length){ ul.innerHTML='<li class="empty">Nothing here. Try another genre, or untick "hide watched".</li>'; return; }
+
+  films.forEach(f=>{
+    const li=document.createElement("li");
+    li.className="film"+(isWatched(f.id)?" watched":"");
+
+    const tick=document.createElement("button");
+    tick.className="tick"; tick.type="button"; tick.textContent="✓";
+    tick.setAttribute("aria-pressed", isWatched(f.id));
+    tick.setAttribute("aria-label",(isWatched(f.id)?"Mark unwatched: ":"Mark watched: ")+f.title);
+    tick.onclick=()=>toggleWatched(f.id);
+
+    const body=document.createElement("button");
+    body.className="film-body"; body.type="button";
+    const t=tagOf(f.id);
+    const isNew = f.id>=SHELF_N;
+    body.innerHTML='<span class="film-title">'+
+      (t?'<span class="badge '+t+'">'+TAGS[t]+'</span>':'')+
+      (isNew?'<span class="badge new">Swapped in</span>':'')+
+      '<span class="tt"></span></span>'+
+      '<span class="film-meta">'+f.genre+' · '+f.year+' · '+f.cert+' · '+f.mins+' min</span>';
+    body.querySelector(".tt").textContent=f.title;
+    body.onclick=()=>openSheet(f.id);
+
+    const rate=document.createElement("span");
+    rate.className="rating"; rate.textContent=f.rating.toFixed(1);
+
+    li.append(tick,body,rate);
+    ul.appendChild(li);
+  });
+}
+
+function renderNext(){
+  const box=document.getElementById("stubs"); box.innerHTML="";
+  const top=onShelf().filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no")
+                     .sort((a,b)=>b.rating-a.rating||a.year-b.year).slice(0,10);
+  if(!top.length){ box.innerHTML='<p class="empty">Nothing queued. Everything is watched or tagged out.</p>'; return; }
+  top.forEach((f,i)=>{
+    const b=document.createElement("button"); b.className="stub";
+    b.innerHTML='<span class="stub-no">'+String(i+1).padStart(2,"0")+'</span>'+
+      '<span class="stub-body"><span class="stub-title"></span>'+
+      '<span class="stub-meta">'+f.genre+' · '+f.year+' · '+f.cert+' · '+f.mins+' min · '+f.rating.toFixed(1)+'</span></span>';
+    b.querySelector(".stub-title").textContent=f.title;
+    b.onclick=()=>openSheet(f.id);
+    box.appendChild(b);
+  });
+}
+
+function renderWatched(){
+  const ul=document.getElementById("watchedLog"); ul.innerHTML="";
+  const note=document.getElementById("watchedNote");
+  const entries=Object.keys(state.watched).map(Number).sort((a,b)=>{
+    const da=state.watched[a], db=state.watched[b];
+    if(!da && !db) return F(a).title.localeCompare(F(b).title);
+    if(!da) return 1;                    // carried over, no date — sits at the bottom
+    if(!db) return -1;
+    return new Date(db)-new Date(da);
+  });
+  if(!entries.length){
+    note.textContent="Nothing ticked off yet.";
+    ul.innerHTML='<li class="empty">Films you tick appear here, newest first, with the date and total time watched.</li>';
+    return;
+  }
+  const mins=entries.reduce((s,id)=>s+F(id).mins,0);
+  const h=Math.floor(mins/60);
+  note.textContent=entries.length+" films, about "+h+" hours "+(mins%60)+" minutes of family film nights.";
+  entries.forEach(id=>{
+    const f=F(id);
+    const li=document.createElement("li");
+    const t=tagOf(id);
+    li.innerHTML='<span class="when">'+fmt(state.watched[id])+'</span>'+
+      '<span class="what"><b></b><span class="sub">'+f.genre+' · '+f.year+' · '+f.mins+' min · '+f.rating.toFixed(1)+
+      (t?' · <em>'+TAGS[t]+'</em>':'')+'</span></span>';
+    li.querySelector("b").textContent=f.title;
+    const btn=document.createElement("button");
+    btn.className="mini"; btn.textContent="Untick";
+    btn.onclick=()=>toggleWatched(id);
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+}
+
+function renderRemoved(){
+  const ul=document.getElementById("removedLog"); ul.innerHTML="";
+  const note=document.getElementById("removedNote");
+  const bench=ALL.length-state.shelf.length-0;
+  const spare=ALL.filter(f=>!state.shelf.includes(f.id)).length;
+  note.textContent="Every removal pulls the highest-rated reserve film from the same genre. "+spare+" films left on the reserve bench.";
+  if(!state.log.length){
+    ul.innerHTML='<li class="empty">Nothing removed yet. Open any film and use Remove — a replacement takes its place automatically.</li>';
+    return;
+  }
+  state.log.forEach(entry=>{
+    const f=F(entry.id);
+    const li=document.createElement("li");
+    const swapTxt = (entry.swapIn!==null && entry.swapIn!==undefined)
+      ? '<br><span class="swap">↳ replaced by '+F(entry.swapIn).title+'</span>' : '';
+    li.innerHTML='<span class="when">'+fmt(entry.date)+'</span>'+
+      '<span class="what"><b></b><span class="sub">'+f.genre+' · '+f.year+
+      (entry.tag?' · tagged "'+TAGS[entry.tag]+'"':'')+
+      (entry.from==="v1" ? ' · carried over from the first version' : ' · removed '+fmtLong(entry.date))+
+      swapTxt+'</span></span>';
+    li.querySelector("b").textContent=f.title;
+    const btn=document.createElement("button");
+    btn.className="mini"; btn.textContent="Put back";
+    btn.onclick=()=>restore(entry);
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+}
+
+function render(){
+  renderCounts(); renderChips(); renderList(); renderNext(); renderWatched(); renderRemoved();
+}
+
+/* ---------- sheet ---------- */
+function openSheet(id){
+  const f=F(id), bg=document.getElementById("sheetBg"), s=document.getElementById("sheet");
+  bg.dataset.film=id;
+  const t=tagOf(id);
+  s.innerHTML='<h2 id="sheetTitle"></h2>'+
+    '<div class="facts">'+
+      '<span class="fact"><b>'+f.year+'</b></span>'+
+      '<span class="fact">Certificate <b>'+f.cert+'</b></span>'+
+      '<span class="fact">Runs <b>'+f.mins+' min</b></span>'+
+      '<span class="fact">IMDb <b>'+f.rating.toFixed(1)+'</b>/10</span>'+
+      '<span class="fact">Genre <b>'+f.genre+'</b></span>'+
+      '<span class="fact">Status <b>'+(isWatched(id)
+          ? (state.watched[id] ? "Watched "+fmtLong(state.watched[id]) : "Watched already")
+          : "Not yet")+'</b></span>'+
+    '</div>'+
+    '<p class="blurb"></p>'+
+    '<div class="tag-row"><span class="tag-label">Tag it</span><div class="tag-opts">'+
+      Object.keys(TAGS).map(k=>'<button class="tagbtn '+k+'" data-tag="'+k+'" aria-pressed="'+(t===k)+'">'+TAGS[k]+'</button>').join("")+
+    '</div></div>'+
+    '<div class="sheet-actions">'+
+      '<button class="btn '+(isWatched(id)?"done":"primary")+'" id="sheetTick">'+(isWatched(id)?"Watched ✓ — undo":"Mark as watched")+'</button>'+
+      '<a class="btn" href="'+f.imdb+'" target="_blank" rel="noopener">Look up on IMDb</a>'+
+      '<button class="btn danger" id="sheetKill">Remove &amp; replace</button>'+
+      '<button class="btn" id="sheetClose">Close</button>'+
+    '</div>';
+  s.querySelector("#sheetTitle").textContent=f.title;
+  s.querySelector(".blurb").textContent=f.blurb;
+  s.querySelectorAll(".tagbtn").forEach(b=>b.onclick=()=>setTag(id,b.dataset.tag));
+  s.querySelector("#sheetTick").onclick=()=>toggleWatched(id);
+  s.querySelector("#sheetKill").onclick=()=>removeFilm(id);
+  s.querySelector("#sheetClose").onclick=closeSheet;
+  bg.classList.add("open"); s.scrollTop=0;
+}
+function closeSheet(){ document.getElementById("sheetBg").classList.remove("open"); }
+document.getElementById("sheetBg").addEventListener("click",e=>{if(e.target.id==="sheetBg")closeSheet();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet();});
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tab").forEach(btn=>{
+  btn.onclick=()=>{
+    ui.tab=btn.dataset.tab;
+    document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b===btn));
+    ["catalogue","next","watched","removed"].forEach(p=>{
+      document.getElementById("panel-"+p).hidden = (p!==ui.tab);
+    });
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+});
+/* ---------- backup: save to a file, restore from one ---------- */
+/* ---------- linked file: write straight into a OneDrive folder ----------
+   Uses the File System Access API. The browser hands us a lasting handle to
+   one file the user picks, so later saves overwrite it with no prompt.
+   Chrome and Edge on desktop only; Safari and Firefox don't support it. */
+const FS_OK = (typeof window!=="undefined") && typeof window.showSaveFilePicker==="function";
+let fileHandle = null;
+let linkTimer = null;
+let suppressLink = false;
+
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open("nate-catalogue-link",1);
+    r.onupgradeneeded=()=>r.result.createObjectStore("handles");
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function idbPut(k,v){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{ const t=db.transaction("handles","readwrite");
+    t.objectStore("handles").put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); });
+}
+async function idbGet(k){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{ const t=db.transaction("handles","readonly");
+    const q=t.objectStore("handles").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
+}
+
+async function linkFile(){
+  if(!FS_OK){
+    toast("This browser can't link to a file. Use Chrome or Edge on a computer.");
+    return;
+  }
+  try{
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: backupName((state.saveNo||0)+1),
+      types:[{description:"Catalogue backup", accept:{"application/json":[".json"]}}]
+    });
+    await idbPut("handle", fileHandle);
+    state.autoSave = true;
+    await writeLinked(true);
+    openBackup();
+  }catch(e){ if(e && e.name!=="AbortError") toast("Couldn't link that file."); }
+}
+async function ensurePermission(){
+  if(!fileHandle) return false;
+  try{
+    if(await fileHandle.queryPermission({mode:"readwrite"})==="granted") return true;
+    return (await fileHandle.requestPermission({mode:"readwrite"}))==="granted";
+  }catch(e){ return false; }
+}
+async function writeLinked(announce){
+  if(!fileHandle) return false;
+  if(!await ensurePermission()){ if(announce) toast("Permission to write to that file was declined."); return false; }
+  try{
+    const n=(state.saveNo||0)+1;
+    const w=await fileHandle.createWritable();
+    await w.write(backupPayload(n));
+    await w.close();
+    commitSave(n);
+    if(announce) toast("Written to "+fileHandle.name+" as save"+String(n).padStart(3,"0")+".");
+    return true;
+  }catch(e){ if(announce) toast("Couldn't write to "+fileHandle.name+"."); return false; }
+}
+async function readLinked(){
+  if(!fileHandle){ toast("No file linked yet."); return; }
+  if(!await ensurePermission()){ toast("Permission to read that file was declined."); return; }
+  try{
+    const f=await fileHandle.getFile();
+    applyBackup(JSON.parse(await f.text()), fileHandle.name);
+  }catch(e){ toast("Couldn't read "+fileHandle.name+"."); }
+}
+function unlinkFile(){
+  fileHandle=null; state.autoSave=false; idbPut("handle",null).catch(()=>{});
+  save(); openBackup(); toast("File unlinked. Nothing was deleted.");
+}
+function scheduleLinked(){
+  if(suppressLink || !state.autoSave || !fileHandle) return;
+  clearTimeout(linkTimer);
+  linkTimer=setTimeout(()=>writeLinked(false), 1500);
+}
+
+/* ---------- OneDrive sync (Microsoft Graph) ----------
+   Signs in with PKCE — no client secret, safe to publish. Reads and writes a
+   single file in this app's own OneDrive folder (Apps/…), so it can't touch
+   anything else in your drive. Works on iPad, because it's plain HTTPS. */
+const MS_AUTH="https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
+const MS_TOKEN="https://login.microsoftonline.com/common/oauth2/v2.0/token";
+const MS_SCOPE="Files.ReadWrite.AppFolder offline_access";
+const CLOUD_FILE="nate-film-catalogue.json";
+const GRAPH="https://graph.microsoft.com/v1.0/me/drive/special/approot:/"+CLOUD_FILE+":/content";
+const CID_KEY="nate-ms-client-id", TOK_KEY="nate-ms-token";
+let cloudTimer=null, suppressCloud=false, cloudNews=null;
+
+const clientId = () => lsGet(CID_KEY) || "";
+const redirectUri = () => location.origin + location.pathname;
+const signedIn = () => !!tokenObj();
+
+function b64url(buf){
+  return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)))
+    .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+async function pkce(){
+  const v=b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const c=b64url(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));
+  return {v,c};
+}
+function tokenObj(){ try{ return JSON.parse(lsGet(TOK_KEY)||"null"); }catch(e){ return null; } }
+function storeToken(t){
+  lsSet(TOK_KEY, JSON.stringify({access:t.access_token, refresh:t.refresh_token,
+                                 exp:Date.now()+((t.expires_in||3600)-60)*1000}));
+}
+async function msSignIn(){
+  if(!clientId()){ toast("Add your Microsoft app ID first."); return; }
+  if(location.protocol!=="https:" && location.hostname!=="localhost"){
+    toast("OneDrive sign-in needs the page served over https."); return;
+  }
+  const {v,c}=await pkce();
+  try{ sessionStorage.setItem("nate-pkce",v); }catch(e){}
+  const u=new URL(MS_AUTH);
+  u.searchParams.set("client_id",clientId());
+  u.searchParams.set("response_type","code");
+  u.searchParams.set("redirect_uri",redirectUri());
+  u.searchParams.set("scope",MS_SCOPE);
+  u.searchParams.set("code_challenge",c);
+  u.searchParams.set("code_challenge_method","S256");
+  location.href=u.toString();
+}
+async function msExchange(code){
+  let v=""; try{ v=sessionStorage.getItem("nate-pkce")||""; }catch(e){}
+  const body=new URLSearchParams({client_id:clientId(), grant_type:"authorization_code",
+    code, redirect_uri:redirectUri(), code_verifier:v});
+  const r=await fetch(MS_TOKEN,{method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"}, body});
+  if(!r.ok) throw new Error("token exchange failed");
+  storeToken(await r.json());
+  try{ sessionStorage.removeItem("nate-pkce"); }catch(e){}
+}
+async function accessToken(){
+  const t=tokenObj(); if(!t) return null;
+  if(Date.now()<t.exp) return t.access;
+  if(!t.refresh) return null;
+  try{
+    const body=new URLSearchParams({client_id:clientId(), grant_type:"refresh_token",
+      refresh_token:t.refresh, scope:MS_SCOPE});
+    const r=await fetch(MS_TOKEN,{method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"}, body});
+    if(!r.ok) return null;
+    const n=await r.json(); storeToken(n); return n.access_token;
+  }catch(e){ return null; }
+}
+function msSignOut(){
+  lsSet(TOK_KEY,""); state.cloudAuto=false; save(); openBackup();
+  toast("Signed out. Nothing in OneDrive was deleted.");
+}
+async function cloudPush(announce){
+  const tk=await accessToken();
+  if(!tk){ if(announce) toast("Sign in to OneDrive first."); return false; }
+  const n=(state.saveNo||0)+1;
+  try{
+    const r=await fetch(GRAPH,{method:"PUT",
+      headers:{Authorization:"Bearer "+tk,"Content-Type":"application/json"},
+      body:backupPayload(n)});
+    if(!r.ok) throw new Error(r.status);
+    suppressCloud=true; commitSave(n); suppressCloud=false;
+    cloudNews=null;
+    if(announce){ toast("Sent to OneDrive as save"+String(n).padStart(3,"0")+"."); openBackup(); }
+    return true;
+  }catch(e){ if(announce) toast("Couldn't write to OneDrive."); return false; }
+}
+async function cloudFetch(){
+  const tk=await accessToken(); if(!tk) return null;
+  const r=await fetch(GRAPH,{headers:{Authorization:"Bearer "+tk}});
+  if(r.status===404) return "none";
+  if(!r.ok) throw new Error(r.status);
+  return await r.json();
+}
+async function cloudPull(announce){
+  try{
+    const obj=await cloudFetch();
+    if(obj===null){ if(announce) toast("Sign in to OneDrive first."); return false; }
+    if(obj==="none"){ if(announce) toast("No file in OneDrive yet — use Send now to create it."); return false; }
+    applyBackup(obj,"OneDrive");
+    cloudNews=null;
+    return true;
+  }catch(e){ if(announce) toast("Couldn't read from OneDrive."); return false; }
+}
+async function cloudCheck(){
+  if(!signedIn()) return;
+  try{
+    const obj=await cloudFetch();
+    if(!obj || obj==="none") return;
+    const remote=obj.save||0;
+    if(remote > (state.saveNo||0)){
+      cloudNews=obj;
+      toast("OneDrive has a newer copy (save"+String(remote).padStart(3,"0")+"). Open the save panel to load it.");
+    }
+  }catch(e){ /* offline, no bother */ }
+}
+function scheduleCloud(){
+  if(suppressCloud || !state.cloudAuto || !signedIn()) return;
+  clearTimeout(cloudTimer);
+  cloudTimer=setTimeout(()=>cloudPush(false), 2500);
+}
+
+function backupPayload(n){
+  return JSON.stringify({app:"nate-film-catalogue", appVersion:APP_VERSION, schema:2,
+                         save:n, saved:new Date().toISOString(),
+                         shelf:state.shelf, watched:state.watched, tags:state.tags, log:state.log});
+}
+function commitSave(n){
+  state.saveNo = n;
+  state.savedAt = new Date().toISOString();
+  suppressLink = true; save(); suppressLink = false;
+}
+function stamp(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function backupName(n){ return "nate-film-catalogue-save"+String(n).padStart(3,"0")+"-"+stamp()+".json"; }
+function downloadBackup(){
+  const n = (state.saveNo||0)+1;
+  const name = backupName(n);
+  try{
+    const blob=new Blob([backupPayload(n)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    commitSave(n);
+    toast("Saved as "+name);
+    openBackup();
+  }catch(e){
+    toast("This viewer blocked the download. Copy the backup code instead.");
+  }
+}
+function applyBackup(obj, source){
+  if(!obj || !Array.isArray(obj.shelf) || typeof obj.watched!=="object"){
+    toast("That doesn't look like a catalogue backup."); return;
+  }
+  const seen=Object.keys(obj.watched||{}).length;
+  const label = obj.save ? "save "+String(obj.save).padStart(3,"0") : "an unnumbered save";
+  const mismatch = (obj.appVersion && obj.appVersion!==APP_VERSION)
+    ? "\n\nHeads up: it was written by app version "+obj.appVersion+" and this is "+APP_VERSION+"." : "";
+  if(!confirm("Restore "+label+" from "+source+"?\n\nThis replaces what's on screen now: "+
+              obj.shelf.length+" films, "+seen+" watched, "+((obj.log||[]).length)+" removed."+mismatch)) return;
+  state.shelf = obj.shelf.filter(id=>id>=0 && id<ALL.length);
+  state.watched = obj.watched||{};
+  state.tags = obj.tags||{};
+  state.log = obj.log||[];
+  state.saveNo = obj.save || 0;
+  state.savedAt = obj.saved || null;
+  save(); closeSheet(); render();
+  toast("Restored "+label+". "+state.shelf.length+" films on the shelf, "+Object.keys(state.watched).length+" watched.");
+}
+function openBackup(){
+  const bg=document.getElementById("sheetBg"), s=document.getElementById("sheet");
+  bg.dataset.film="";
+  const n=(state.saveNo||0);
+  const last = n
+    ? "Last saved as <b>save"+String(n).padStart(3,"0")+"</b> on "+fmtLong(state.savedAt)+". The next one will be <b>save"+String(n+1).padStart(3,"0")+"</b>."
+    : "No file saved yet. The first will be <b>save001</b>.";
+  const cid=clientId();
+  let cloudHtml;
+  if(!cid){
+    cloudHtml='<p>Syncs one file between every device, iPad included. Needs a free Microsoft app ID — the setup notes explain where to get one. Paste it here once.</p>'+
+      '<input class="idin" id="cdId" placeholder="Microsoft app (client) ID" spellcheck="false" autocomplete="off">'+
+      '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="cdSaveId">Save app ID</button></div>';
+  }else if(!signedIn()){
+    cloudHtml='<p>App ID saved. Sign in with the Microsoft account that holds your OneDrive. The app only gets its own folder, nothing else in your drive.</p>'+
+      '<div class="sheet-actions"><button class="btn primary" id="cdIn">Sign in to OneDrive</button>'+
+      '<button class="btn" id="cdClear">Change app ID</button></div>';
+  }else{
+    const newer = cloudNews
+      ? '<p style="color:var(--marquee)">OneDrive has a newer copy: save'+String(cloudNews.save||0).padStart(3,"0")+
+        ', '+Object.keys(cloudNews.watched||{}).length+' watched. Load it to catch up.</p>' : '';
+    cloudHtml='<p>Signed in. '+(state.cloudAuto
+        ? 'Every change is sent to OneDrive a couple of seconds after you make it.'
+        : 'Automatic sending is off — use Send now.')+'</p>'+newer+
+      '<div class="sheet-actions"><button class="btn primary" id="cdPush">Send now</button>'+
+      '<button class="btn" id="cdPull">Load from OneDrive</button>'+
+      '<button class="btn" id="cdAuto">'+(state.cloudAuto?"Turn off automatic":"Turn on automatic")+'</button>'+
+      '<button class="btn danger" id="cdOut">Sign out</button></div>';
+  }
+  const linked = fileHandle
+    ? '<p>Linked to <b>'+fileHandle.name+'</b>. '+(state.autoSave
+        ? 'Every change is written to it automatically.'
+        : 'Automatic writing is off — use Save now.')+'</p>'+
+      '<div class="sheet-actions"><button class="btn primary" id="lkNow">Save now</button>'+
+      '<button class="btn" id="lkAuto">'+(state.autoSave?"Turn off automatic":"Turn on automatic")+'</button>'+
+      '<button class="btn" id="lkRead">Load from it</button>'+
+      '<button class="btn danger" id="lkOff">Unlink</button></div>'
+    : (FS_OK
+        ? '<p>Pick a file inside your OneDrive folder and the app will write to it directly from then on — no downloads, no prompts. OneDrive syncs it like any other file.</p>'+
+          '<div class="sheet-actions"><button class="btn primary" id="lkNew">Link a file in OneDrive</button></div>'
+        : '<p>This browser can\'t write directly to a file. Chrome or Edge on a Windows or Mac computer can. On iPad or iPhone, use Save to a file below instead.</p>');
+  s.innerHTML='<h2 id="sheetTitle">Save &amp; restore</h2>'+
+    '<div class="backup-block"><h3>OneDrive sync — all devices</h3>'+cloudHtml+'</div>'+
+    '<div class="backup-block"><h3>Linked file — this computer only</h3>'+linked+'</div>'+
+    '<div class="backup-block"><h3>Save a copy</h3>'+
+    '<p>Writes everything — ticks, tags, swaps and both histories — to a small file you can keep, back up, or move to another device. '+
+    'Each save gets the next number, so the highest number is always the newest.</p>'+
+    '<p>'+last+'</p>'+
+    '<div class="sheet-actions"><button class="btn primary" id="bkDown">Save to a file</button>'+
+    '<button class="btn" id="bkCopy">Copy backup code</button></div></div>'+
+    '<div class="backup-block"><h3>Restore</h3>'+
+    '<p>Open a file you saved earlier, or paste a backup code below. Either one replaces what is currently on screen, and tells you which save number it is first.</p>'+
+    '<div class="sheet-actions" style="margin-bottom:11px"><button class="btn" id="bkOpen">Open a saved file</button></div>'+
+    '<textarea class="code" id="bkPaste" placeholder="Paste a backup code here" spellcheck="false"></textarea>'+
+    '<div class="sheet-actions" style="margin-top:9px"><button class="btn" id="bkPasteGo">Restore from code</button>'+
+    '<button class="btn" id="sheetClose">Close</button></div></div>';
+  const on=(id,fn)=>{ const el=s.querySelector(id); if(el) el.onclick=fn; };
+  on("#cdSaveId", ()=>{
+    const v=s.querySelector("#cdId").value.trim();
+    if(!v){ toast("Paste the app ID first."); return; }
+    lsSet(CID_KEY,v); openBackup(); toast("App ID saved.");
+  });
+  on("#cdClear", ()=>{ lsSet(CID_KEY,""); openBackup(); });
+  on("#cdIn", msSignIn);
+  on("#cdOut", msSignOut);
+  on("#cdPush", ()=>cloudPush(true));
+  on("#cdPull", ()=>cloudPull(true));
+  on("#cdAuto", ()=>{ state.cloudAuto=!state.cloudAuto; save(); openBackup();
+                      toast(state.cloudAuto?"Automatic sending on.":"Automatic sending off."); });
+  on("#lkNew", linkFile);
+  on("#lkNow", ()=>writeLinked(true));
+  on("#lkRead", readLinked);
+  on("#lkOff", unlinkFile);
+  on("#lkAuto", ()=>{ state.autoSave=!state.autoSave; save(); openBackup();
+                      toast(state.autoSave?"Automatic writing on.":"Automatic writing off."); });
+  s.querySelector("#bkDown").onclick=downloadBackup;
+  s.querySelector("#bkCopy").onclick=async()=>{
+    const num=(state.saveNo||0)+1;
+    const txt=backupPayload(num);
+    try{
+      await navigator.clipboard.writeText(txt);
+      commitSave(num);
+      toast("Save"+String(num).padStart(3,"0")+" copied. Paste it somewhere safe.");
+      openBackup();
+    }catch(e){ const ta=s.querySelector("#bkPaste"); ta.value=txt; ta.select(); toast("Copy the text in the box below."); }
+  };
+  s.querySelector("#bkOpen").onclick=()=>document.getElementById("fileIn").click();
+  s.querySelector("#bkPasteGo").onclick=()=>{
+    const v=s.querySelector("#bkPaste").value.trim();
+    if(!v){ toast("Paste a backup code into the box first."); return; }
+    try{ applyBackup(JSON.parse(v), "that code"); }
+    catch(e){ toast("Couldn't read that code — check the whole thing was pasted."); }
+  };
+  s.querySelector("#sheetClose").onclick=closeSheet;
+  bg.classList.add("open"); s.scrollTop=0;
+}
+document.getElementById("backupBtn").onclick=openBackup;
+document.getElementById("fileIn").onchange=e=>{
+  const file=e.target.files&&e.target.files[0];
+  if(!file) return;
+  const fr=new FileReader();
+  fr.onload=()=>{ try{ applyBackup(JSON.parse(fr.result), file.name); }
+                  catch(err){ toast("Couldn't read that file — it isn't a catalogue backup."); } };
+  fr.onerror=()=>toast("Couldn't open that file.");
+  fr.readAsText(file);
+  e.target.value="";
+};
+
+document.getElementById("sort").onchange=e=>{ui.sort=e.target.value;renderList();};
+document.getElementById("hideWatched").onchange=e=>{ui.hide=e.target.checked;renderList();};
+document.getElementById("appVer").textContent="Catalogue app v"+APP_VERSION;
+document.getElementById("importV1").onclick=()=>migrateFromV1(true);
+
+load().catch(()=>{}).then(render);
+</script>
+</body>
+</html>
