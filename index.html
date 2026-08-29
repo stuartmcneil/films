@@ -501,7 +501,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "3.9";
+const APP_VERSION = "3.10";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
@@ -1269,14 +1269,15 @@ function b64dec(b64){
   return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));
 }
 
-async function ghGet(){
+async function ghGet(ref){
   if(!ghReady()) return null;
-  const r=await fetch(ghUrl()+"?ref=main&t="+Date.now(),{headers:ghHead(), cache:"no-store"});
+  const r=await fetch(ghUrl()+"?ref="+encodeURIComponent(ref||"main")+"&t="+Date.now(),
+                      {headers:ghHead(), cache:"no-store"});
   if(r.status===404) return "none";
   if(r.status===401||r.status===403) throw new Error("auth");
   if(!r.ok) throw new Error(String(r.status));
   const j=await r.json();
-  ghSha=j.sha;
+  if(!ref || ref==="main") ghSha=j.sha;
   return JSON.parse(b64dec(j.content));
 }
 async function ghPut(n){
@@ -1305,19 +1306,23 @@ function ghProblem(e, announce){
   if(e && e.message==="auth") toast("GitHub rejected the token. Check it hasn't expired and has Contents write access.");
   else toast("Couldn't reach GitHub. Check the repo name and your connection.");
 }
-async function cloudPush(announce){
+async function cloudPush(announce, force){
   if(!ghReady()){ if(announce) toast("Add the repo and token first."); return false; }
+  let remoteNo=0;
   try{
-    // Check first: never write over a save newer than the one this device holds
     const remote=await ghGet();
-    if(remote && remote!=="none" && (remote.save||0) > (state.saveNo||0)){
-      cloudNews=remote;
-      toast("Not sent — GitHub has a newer copy (save"+String(remote.save||0).padStart(3,"0")+
-            "). Load it first so nothing is lost.");
-      return false;
+    if(remote && remote!=="none"){
+      remoteNo=remote.save||0;
+      if(remoteNo > (state.saveNo||0) && !force){
+        cloudNews=remote;
+        toast("Not sent — GitHub has a newer copy (save"+String(remoteNo).padStart(3,"0")+
+              "). Load it first, or use Overwrite if you meant to replace it.");
+        return false;
+      }
     }
   }catch(e){ ghProblem(e,announce); return false; }
-  const n=(state.saveNo||0)+1;
+  // always move the counter forward, even when deliberately restoring an older copy
+  const n=Math.max(remoteNo, state.saveNo||0)+1;
   try{
     await ghPut(n);
     suppressCloud=true; commitSave(n); suppressCloud=false;
@@ -1325,6 +1330,18 @@ async function cloudPush(announce){
     if(announce){ toast("Committed to GitHub as save"+String(n).padStart(3,"0")+"."); openBackup(); }
     return true;
   }catch(e){ ghProblem(e,announce); return false; }
+}
+async function cloudPullRef(ref){
+  try{
+    const obj=await ghGet(ref);
+    if(!obj || obj==="none"){ toast("Nothing found at that commit."); return false; }
+    applyBackup(obj,"commit "+ref.slice(0,7));
+    return true;
+  }catch(e){
+    if(e && e.message==="404") toast("That commit has no catalogue file in it.");
+    else ghProblem(e,true);
+    return false;
+  }
 }
 async function cloudPull(announce){
   if(!ghReady()){ if(announce) toast("Add the repo and token first."); return false; }
@@ -1442,8 +1459,12 @@ function openBackup(){
       '<div class="sheet-actions"><button class="btn primary" id="cdPush">Send now</button>'+
       '<button class="btn" id="cdPull">Load from GitHub</button>'+
       '<button class="btn" id="cdAuto">'+(state.cloudAuto?"Turn off automatic":"Turn on automatic")+'</button>'+
+      '<button class="btn danger" id="cdForce">Overwrite GitHub</button>'+
       '<a class="btn" href="'+ghHistory()+'" target="_blank" rel="noopener">History</a>'+
-      '<button class="btn danger" id="cdOut">Disconnect</button></div>';
+      '<button class="btn danger" id="cdOut">Disconnect</button></div>'+
+      '<p style="margin-top:14px">Restore an earlier version — paste a commit address or its ID from the History list.</p>'+
+      '<input class="idin" id="ghRef" placeholder="https://github.com/…/commit/ab37813  or  ab37813" spellcheck="false">'+
+      '<div class="sheet-actions" style="margin-top:9px"><button class="btn" id="cdRef">Load that commit</button></div>';
   }
   const nP=Object.keys(state.posters||{}).filter(k=>(state.posters[k]||{}).path).length;
   const ovCount=Object.keys(state.ov||{}).reduce((a,g)=>a+((state.ov||{})[g]||[]).length,0);
@@ -1514,6 +1535,18 @@ function openBackup(){
   });
   on("#cdOut", ghDisconnect);
   on("#cdPush", ()=>cloudPush(true));
+  on("#cdForce", async ()=>{
+    if(!confirm("Replace whatever is in GitHub with the copy on this device?\n\n"+
+                "Use this after restoring an older version. Nothing is deleted — the previous save stays in the commit history."))
+      return;
+    if(await cloudPush(false,true)){ toast("GitHub overwritten with this copy."); openBackup(); }
+  });
+  on("#cdRef", async ()=>{
+    const raw=s.querySelector("#ghRef").value.trim();
+    const m=raw.match(/[0-9a-f]{7,40}/i);
+    if(!m){ toast("Paste a commit address or its ID."); return; }
+    await cloudPullRef(m[0]);
+  });
   on("#cdPull", ()=>cloudPull(true));
   on("#cdAuto", ()=>{ state.cloudAuto=!state.cloudAuto; save(); openBackup();
                       toast(state.cloudAuto?"Automatic sending on.":"Automatic sending off."); });
