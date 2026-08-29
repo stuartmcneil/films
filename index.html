@@ -183,7 +183,7 @@
     <div class="head-row">
       <div>
         <h1>Nate's Film <span class="amp">Catalogue</span></h1>
-        <p class="tagline">Tag it, tick it, swap it out. The shelf stays at 150.</p>
+        <p class="tagline">Tag it, tick it, swap it out. The shelf stays at 200.</p>
       </div>
       <div class="head-actions">
         <button class="iconbtn" id="resetBtn" title="Refresh and clear stored data" aria-label="Refresh and clear stored data">
@@ -205,14 +205,14 @@
       <div class="progress-bar"><div class="progress-fill" id="fill"></div></div>
       <div class="progress-label">
         <span><b id="countWatched">0</b> watched</span>
-        <span><b id="countLeft">150</b> to go</span>
+        <span><b id="countLeft">200</b> to go</span>
       </div>
     </div>
   </div>
 </header>
 
 <div class="tabs" role="tablist">
-  <button class="tab" role="tab" data-tab="catalogue" aria-selected="true"><span class="n" id="tabCat">150</span>Catalogue</button>
+  <button class="tab" role="tab" data-tab="catalogue" aria-selected="true"><span class="n" id="tabCat">200</span>Catalogue</button>
   <button class="tab" role="tab" data-tab="next" aria-selected="false"><span class="n" id="tabNext">10</span>Up next</button>
   <button class="tab" role="tab" data-tab="watched" aria-selected="false"><span class="n" id="tabWatched">0</span>Watched</button>
   <button class="tab" role="tab" data-tab="removed" aria-selected="false"><span class="n" id="tabRemoved">0</span>Removed</button>
@@ -491,21 +491,80 @@ const BENCH = [
 ["How to Train Your Dragon 2",2014,"PG",102,7.8,"Animated","Five years on, dragon riders face an army and pay a real price."]
 ];
 
-const ALL = SHELF.concat(BENCH).map((r,i)=>({
+
+/* Added later: 25 action, 25 war. Appended after the bench so that every
+   existing id keeps pointing at the same film. */
+const EXTRA = [
+["Seven Samurai",1954,"PG",207,8.6,"Action","A village hires seven ronin. The template every team-assembles-for-a-fight film copies."],
+["Once Upon a Time in the West",1968,"PG-13",165,8.5,"Action","A harmonica, a railroad and the slowest, best standoffs ever filmed."],
+["Yojimbo",1961,"PG",110,8.2,"Action","A wandering swordsman plays two gangs against each other for his own amusement."],
+["Ben-Hur",1959,"G",212,8.1,"Action","The chariot race alone is worth the running time. Still unmatched as spectacle."],
+["Butch Cassidy and the Sundance Kid",1969,"PG",110,8.0,"Action","Two outlaws, one posse they can't shake, and a great deal of banter."],
+["High Noon",1952,"PG",85,8.0,"Action","A marshal, abandoned by his town, waits for the noon train. Told in real time."],
+["Rio Bravo",1959,"PG",141,8.0,"Action","A sheriff holds a jail with a drunk, a kid and an old man. Wonderfully relaxed."],
+["The Hidden Fortress",1958,"PG",139,8.0,"Action","Two bickering peasants escort a princess through enemy land. Lucas borrowed heavily."],
+["Sanjuro",1962,"PG",96,8.0,"Action","The Yojimbo swordsman again, funnier, with a startling final second."],
+["Dances with Wolves",1990,"PG-13",181,8.0,"Action","A soldier posted to the frontier changes sides. Beautiful, and very long."],
+["Spartacus",1960,"PG-13",197,7.9,"Action","A slave leads a revolt against Rome. Gladiator school, then open war."],
+["The Searchers",1956,"PG",119,7.9,"Action","A five-year search across Monument Valley, with a hero who isn't quite a hero."],
+["Kagemusha",1980,"PG",180,7.9,"Action","A thief impersonates a warlord. Enormous battle scenes, painted like screens."],
+["The Adventures of Robin Hood",1938,"PG",102,7.9,"Action","Errol Flynn, Technicolor greens, and sword fights up a castle staircase."],
+["Taken",2008,"PG-13",93,7.8,"Action","A retired agent's daughter is snatched in Paris. Ninety brisk minutes."],
+["Stagecoach",1939,"PG",96,7.8,"Action","Nine strangers cross dangerous country. The stunt work is still astonishing."],
+["The Magnificent Seven",1960,"PG-13",128,7.7,"Action","Seven Samurai moved to the Old West, with the most famous theme tune going."],
+["The Hunt for Red October",1990,"PG",135,7.6,"Action","A Soviet submarine captain defects and everyone has to work out why."],
+["True Grit",2010,"PG-13",110,7.6,"Action","A fourteen-year-old hires a drunk marshal to hunt her father's killer."],
+["House of Flying Daggers",2004,"PG-13",119,7.5,"Action","The bamboo forest chase and the drum game. Stunning to look at."],
+["Project A",1983,"PG-13",105,7.3,"Action","Jackie Chan versus pirates, including a fall from a clock tower he really did."],
+["Police Story 2",1988,"PG-13",101,7.2,"Action","More of the same and just as good. The playground fight is the highlight."],
+["Once Upon a Time in China",1991,"PG-13",134,7.2,"Action","Jet Li as folk hero Wong Fei-hung. The ladder fight is legendary."],
+["Silverado",1985,"PG-13",133,7.2,"Action","Four men, one crooked town. A big, generous, cheerful western."],
+["Clear and Present Danger",1994,"PG-13",141,6.9,"Action","Jack Ryan uncovers a secret war. The ambush in Bogotá is superbly staged."],
+["Life Is Beautiful",1997,"PG-13",116,8.6,"War","A father convinces his son the camp is a game. Funny, then devastating."],
+["Casablanca",1942,"PG",102,8.5,"War","A nightclub owner in wartime Morocco has to choose a side. Every line lands."],
+["Grave of the Fireflies",1988,"PG",89,8.5,"War","Two children survive alone in firebombed Japan. Extraordinary, and very hard going."],
+["Lawrence of Arabia",1962,"PG",218,8.3,"War","Desert warfare on the largest possible canvas. Watch it on the biggest screen you have."],
+["The Bridge on the River Kwai",1957,"PG",161,8.1,"War","POWs build a bridge for their captors, and their colonel loses the plot."],
+["The Best Years of Our Lives",1946,"PG",170,8.1,"War","Three servicemen come home and find it harder than they expected."],
+["Stalag 17",1953,"PG",120,8.0,"War","There's an informer in the POW hut. Sharp, funny and tense at once."],
+["The Imitation Game",2014,"PG-13",114,8.0,"War","Breaking Enigma at Bletchley Park, and the cost of keeping the secret."],
+["Patton",1970,"PG",172,7.9,"War","A brilliant, impossible general. The opening speech is the famous bit."],
+["Dunkirk",2017,"PG-13",106,7.8,"War","Three timelines converging on the beach. Almost no dialogue, relentless tension."],
+["Empire of the Sun",1987,"PG",153,7.7,"War","A boy separated from his parents in occupied Shanghai. Young Christian Bale."],
+["Twelve O'Clock High",1949,"PG",132,7.7,"War","What command does to the man doing it, in a bomber group over Germany."],
+["Gettysburg",1993,"PG",271,7.7,"War","The battle in enormous detail. Four and a half hours — a weekend project."],
+["Zulu",1964,"PG",138,7.7,"War","A hundred and fifty soldiers hold a mission station against thousands."],
+["The Dirty Dozen",1967,"PG",150,7.7,"War","Twelve convicts are trained for a suicide raid. Half heist, half war film."],
+["The Longest Day",1962,"G",178,7.7,"War","D-Day from every side at once, with what feels like every actor alive in 1962."],
+["The Caine Mutiny",1954,"PG",124,7.7,"War","Officers relieve their captain in a typhoon, then face a court martial."],
+["Kelly's Heroes",1970,"PG",144,7.6,"War","American soldiers go behind the lines to rob a bank. Cheerfully daft."],
+["Where Eagles Dare",1968,"PG",158,7.6,"War","A mountain castle, a cable car fight, and double-crosses throughout."],
+["Ice Cold in Alex",1958,"PG",130,7.6,"War","An ambulance crosses the desert. The whole film builds to a glass of lager."],
+["Bridge of Spies",2015,"PG-13",142,7.6,"War","A lawyer negotiates a Cold War prisoner swap in a divided Berlin."],
+["The Guns of Navarone",1961,"PG",158,7.5,"War","A team is sent to destroy two enormous German guns on a Greek island."],
+["A Bridge Too Far",1977,"PG",175,7.4,"War","Operation Market Garden, and an ambitious plan coming apart in slow motion."],
+["The Dam Busters",1955,"PG",125,7.4,"War","Designing the bouncing bomb, then the raid itself. Very British, very good."],
+["Darkest Hour",2017,"PG-13",125,7.4,"War","Churchill's first weeks in office, with invasion expected any day."]
+];
+
+const ALL = SHELF.concat(BENCH).concat(EXTRA).map((r,i)=>({
   id:i, title:r[0], year:r[1], cert:r[2], mins:r[3], rating:r[4], genre:r[5], blurb:r[6],
   imdb:"https://www.imdb.com/find/?q="+encodeURIComponent(r[0]+" "+r[1])+"&s=tt"
 }));
 const SHELF_N = SHELF.length;
-const GENRES = ["All","Action","Adventure","Sci-Fi","Superhero","Comedy","Animated"];
+const BENCH_N = BENCH.length;
+const EXTRA_START = SHELF_N + BENCH_N;
+const GENRES = ["All","Action","War","Adventure","Sci-Fi","Superhero","Comedy","Animated"];
 const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not interested"};
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "3.11";
+const APP_VERSION = "4.0";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
-  shelf: Array.from({length:SHELF_N},(_,i)=>i), // ids currently in the catalogue
+  shelf: Array.from({length:SHELF_N},(_,i)=>i)
+           .concat(Array.from({length:50},(_,i)=>EXTRA_START+i)), // ids currently in the catalogue
   watched: {},   // id -> ISO date
   tags: {},      // id -> 'fav' | 'again' | 'maybe' | 'no'
   picks: {},     // id -> {stu:true, nate:true, ...} — who wants to watch it
@@ -538,6 +597,16 @@ async function load(){
     ? "Ticks, tags and swaps save in this browser. Use the save icon to keep a copy as a file."
     : "This browser is blocking storage, so ticks won't survive a reload. Use the save icon to keep a file instead.";
 
+  // One-off: pull the 50 later additions into a catalogue saved before they existed
+  if(!state.extrasAdded){
+    const removed = (state.log||[]).map(e=>e.id);
+    for(let i=0;i<50;i++){
+      const id=EXTRA_START+i;
+      if(state.shelf.indexOf(id)===-1 && removed.indexOf(id)===-1) state.shelf.push(id);
+    }
+    state.extrasAdded=true;
+    suppressCloud=true; save(); suppressCloud=false;
+  }
   if(!raw) await migrateFromV1(false);
   if(FS_OK){
     try{ const h=await idbGet("handle"); if(h) fileHandle=h; }catch(e){ /* no linked file */ }
@@ -615,7 +684,7 @@ function togglePick(id,k){
   if(bg.classList.contains("open") && bg.dataset.film==String(id)) openSheet(id);
 }
 const OV_TERMS = {
-  Action:"motorcycle chase night city", Adventure:"mountain expedition jungle trail",
+  Action:"motorcycle chase night city", War:"vintage aircraft memorial poppy field", Adventure:"mountain expedition jungle trail",
   "Sci-Fi":"nebula galaxy stars space", Superhero:"city skyline night dramatic",
   Comedy:"confetti celebration colourful", Animated:"colourful abstract paint illustration"
 };
@@ -724,7 +793,7 @@ async function fetchAllPosters(){
   });
 }
 function posterTile(f,extra){
-  const base={Action:8,Adventure:30,"Sci-Fi":205,Superhero:268,Comedy:45,Animated:168};
+  const base={Action:8,War:96,Adventure:30,"Sci-Fi":205,Superhero:268,Comedy:45,Animated:168};
   const seed=Array.from(f.title).reduce((a,c)=>a+c.charCodeAt(0),0);
   const h=((base[f.genre]||210)+(seed%24)-12+360)%360;
   const ini=f.title.replace(/^(The|A|An) /,"").split(/[\s:.,\u2013-]+/)
@@ -924,7 +993,7 @@ function renderList(){
     const body=document.createElement("button");
     body.className="film-body"; body.type="button";
     const t=tagOf(f.id);
-    const isNew = f.id>=SHELF_N;
+    const isNew = f.id>=SHELF_N && f.id<EXTRA_START;
     body.innerHTML='<span class="film-title">'+
       (t?'<span class="badge '+t+'">'+TAGS[t]+'</span>':'')+
       (isNew?'<span class="badge new">Swapped in</span>':'')+
@@ -1428,6 +1497,13 @@ function applyState(obj){
   if(obj.bgDim!==undefined) state.bgDim = obj.bgDim;
   state.saveNo = obj.save || 0;
   state.savedAt = obj.saved || null;
+  // A save written before the 50 additions won't list them — add them back in
+  const gone = (state.log||[]).map(e=>e.id);
+  for(let i=0;i<50;i++){
+    const id=EXTRA_START+i;
+    if(state.shelf.indexOf(id)===-1 && gone.indexOf(id)===-1) state.shelf.push(id);
+  }
+  state.extrasAdded=true;
   suppressCloud=true; save(); suppressCloud=false;
   render();
 }
