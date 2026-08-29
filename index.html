@@ -429,7 +429,7 @@ const ALL = SHELF.concat(BENCH).map((r,i)=>({
 const SHELF_N = SHELF.length;
 const GENRES = ["All","Action","Adventure","Sci-Fi","Superhero","Comedy","Animated"];
 const TAGS = {fav:"Favourite", maybe:"Maybe later", no:"Not interested"};
-const APP_VERSION = "3.0";
+const APP_VERSION = "3.1";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
@@ -467,25 +467,7 @@ async function load(){
   if(FS_OK){
     try{ const h=await idbGet("handle"); if(h) fileHandle=h; }catch(e){ /* no linked file */ }
   }
-  // Coming back from a Microsoft sign-in?
-  const qs=new URLSearchParams(location.search);
-  if(qs.get("code")){
-    try{
-      await msExchange(qs.get("code"));
-      history.replaceState({},"",redirectUri());
-      state.cloudAuto=true; save();
-      toast("Signed in to OneDrive.");
-      await cloudPull(false);
-    }catch(e){
-      history.replaceState({},"",redirectUri());
-      toast("Sign-in didn't complete. Check the app ID and redirect address.");
-    }
-  }else if(qs.get("error")){
-    history.replaceState({},"",redirectUri());
-    toast("Microsoft returned: "+qs.get("error"));
-  }else{
-    cloudCheck();
-  }
+  cloudCheck();
 }
 
 /* Pull ticks and removals across from the first version of the catalogue.
@@ -910,125 +892,106 @@ function scheduleLinked(){
   linkTimer=setTimeout(()=>writeLinked(false), 1500);
 }
 
-/* ---------- OneDrive sync (Microsoft Graph) ----------
-   Signs in with PKCE — no client secret, safe to publish. Reads and writes a
-   single file in this app's own OneDrive folder (Apps/…), so it can't touch
-   anything else in your drive. Works on iPad, because it's plain HTTPS. */
-const MS_AUTH="https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
-const MS_TOKEN="https://login.microsoftonline.com/common/oauth2/v2.0/token";
-const MS_SCOPE="Files.ReadWrite.AppFolder offline_access";
-const CLOUD_FILE="nate-film-catalogue.json";
-const GRAPH="https://graph.microsoft.com/v1.0/me/drive/special/approot:/"+CLOUD_FILE+":/content";
-const CID_KEY="nate-ms-client-id", TOK_KEY="nate-ms-token";
-let cloudTimer=null, suppressCloud=false, cloudNews=null;
+/* ---------- GitHub sync ----------
+   Reads and writes one JSON file in a repo using the GitHub API. Every save
+   is a commit, so you get full history and can roll back. Needs a personal
+   access token scoped to that one repo. Works on iPad, because it's plain
+   HTTPS with no sign-in redirect. */
+const GH_TOKEN_KEY="nate-gh-token", GH_REPO_KEY="nate-gh-repo";
+const GH_PATH="nate-film-catalogue.json";
+let ghSha=null, cloudTimer=null, suppressCloud=false, cloudNews=null;
 
-const clientId = () => lsGet(CID_KEY) || "";
-const redirectUri = () => location.origin + location.pathname;
-const signedIn = () => !!tokenObj();
+const ghToken = () => lsGet(GH_TOKEN_KEY) || "";
+const ghRepo  = () => lsGet(GH_REPO_KEY) || "";
+const ghReady = () => !!(ghToken() && ghRepo());
+const ghUrl   = () => "https://api.github.com/repos/"+ghRepo()+"/contents/"+GH_PATH;
+const ghHead  = () => ({Authorization:"Bearer "+ghToken(), Accept:"application/vnd.github+json"});
+const ghHistory = () => "https://github.com/"+ghRepo()+"/commits/main/"+GH_PATH;
 
-function b64url(buf){
-  return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)))
-    .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+function b64enc(str){
+  const bytes=new TextEncoder().encode(str);
+  let bin=""; bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin);
 }
-async function pkce(){
-  const v=b64url(crypto.getRandomValues(new Uint8Array(48)));
-  const c=b64url(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));
-  return {v,c};
+function b64dec(b64){
+  const bin=atob((b64||"").replace(/\s/g,""));
+  return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));
 }
-function tokenObj(){ try{ return JSON.parse(lsGet(TOK_KEY)||"null"); }catch(e){ return null; } }
-function storeToken(t){
-  lsSet(TOK_KEY, JSON.stringify({access:t.access_token, refresh:t.refresh_token,
-                                 exp:Date.now()+((t.expires_in||3600)-60)*1000}));
+
+async function ghGet(){
+  if(!ghReady()) return null;
+  const r=await fetch(ghUrl()+"?ref=main&t="+Date.now(),{headers:ghHead()});
+  if(r.status===404) return "none";
+  if(r.status===401||r.status===403) throw new Error("auth");
+  if(!r.ok) throw new Error(String(r.status));
+  const j=await r.json();
+  ghSha=j.sha;
+  return JSON.parse(b64dec(j.content));
 }
-async function msSignIn(){
-  if(!clientId()){ toast("Add your Microsoft app ID first."); return; }
-  if(location.protocol!=="https:" && location.hostname!=="localhost"){
-    toast("OneDrive sign-in needs the page served over https."); return;
+async function ghPut(n){
+  const send=async()=>{
+    const body={message:"save"+String(n).padStart(3,"0")+" — "+
+                Object.keys(state.watched).length+" watched, "+state.shelf.length+" on the shelf",
+                content:b64enc(backupPayload(n)), branch:"main"};
+    if(ghSha) body.sha=ghSha;
+    return fetch(ghUrl(),{method:"PUT",
+      headers:Object.assign({"Content-Type":"application/json"},ghHead()),
+      body:JSON.stringify(body)});
+  };
+  let r=await send();
+  if(r.status===409||r.status===422){       // someone else committed first
+    try{ await ghGet(); }catch(e){}
+    r=await send();
   }
-  const {v,c}=await pkce();
-  try{ sessionStorage.setItem("nate-pkce",v); }catch(e){}
-  const u=new URL(MS_AUTH);
-  u.searchParams.set("client_id",clientId());
-  u.searchParams.set("response_type","code");
-  u.searchParams.set("redirect_uri",redirectUri());
-  u.searchParams.set("scope",MS_SCOPE);
-  u.searchParams.set("code_challenge",c);
-  u.searchParams.set("code_challenge_method","S256");
-  location.href=u.toString();
+  if(r.status===401||r.status===403) throw new Error("auth");
+  if(!r.ok) throw new Error(String(r.status));
+  const j=await r.json();
+  if(j && j.content) ghSha=j.content.sha;
+  return true;
 }
-async function msExchange(code){
-  let v=""; try{ v=sessionStorage.getItem("nate-pkce")||""; }catch(e){}
-  const body=new URLSearchParams({client_id:clientId(), grant_type:"authorization_code",
-    code, redirect_uri:redirectUri(), code_verifier:v});
-  const r=await fetch(MS_TOKEN,{method:"POST",
-    headers:{"Content-Type":"application/x-www-form-urlencoded"}, body});
-  if(!r.ok) throw new Error("token exchange failed");
-  storeToken(await r.json());
-  try{ sessionStorage.removeItem("nate-pkce"); }catch(e){}
-}
-async function accessToken(){
-  const t=tokenObj(); if(!t) return null;
-  if(Date.now()<t.exp) return t.access;
-  if(!t.refresh) return null;
-  try{
-    const body=new URLSearchParams({client_id:clientId(), grant_type:"refresh_token",
-      refresh_token:t.refresh, scope:MS_SCOPE});
-    const r=await fetch(MS_TOKEN,{method:"POST",
-      headers:{"Content-Type":"application/x-www-form-urlencoded"}, body});
-    if(!r.ok) return null;
-    const n=await r.json(); storeToken(n); return n.access_token;
-  }catch(e){ return null; }
-}
-function msSignOut(){
-  lsSet(TOK_KEY,""); state.cloudAuto=false; save(); openBackup();
-  toast("Signed out. Nothing in OneDrive was deleted.");
+function ghProblem(e, announce){
+  if(!announce) return;
+  if(e && e.message==="auth") toast("GitHub rejected the token. Check it hasn't expired and has Contents write access.");
+  else toast("Couldn't reach GitHub. Check the repo name and your connection.");
 }
 async function cloudPush(announce){
-  const tk=await accessToken();
-  if(!tk){ if(announce) toast("Sign in to OneDrive first."); return false; }
+  if(!ghReady()){ if(announce) toast("Add the repo and token first."); return false; }
   const n=(state.saveNo||0)+1;
   try{
-    const r=await fetch(GRAPH,{method:"PUT",
-      headers:{Authorization:"Bearer "+tk,"Content-Type":"application/json"},
-      body:backupPayload(n)});
-    if(!r.ok) throw new Error(r.status);
+    await ghPut(n);
     suppressCloud=true; commitSave(n); suppressCloud=false;
     cloudNews=null;
-    if(announce){ toast("Sent to OneDrive as save"+String(n).padStart(3,"0")+"."); openBackup(); }
+    if(announce){ toast("Committed to GitHub as save"+String(n).padStart(3,"0")+"."); openBackup(); }
     return true;
-  }catch(e){ if(announce) toast("Couldn't write to OneDrive."); return false; }
-}
-async function cloudFetch(){
-  const tk=await accessToken(); if(!tk) return null;
-  const r=await fetch(GRAPH,{headers:{Authorization:"Bearer "+tk}});
-  if(r.status===404) return "none";
-  if(!r.ok) throw new Error(r.status);
-  return await r.json();
+  }catch(e){ ghProblem(e,announce); return false; }
 }
 async function cloudPull(announce){
+  if(!ghReady()){ if(announce) toast("Add the repo and token first."); return false; }
   try{
-    const obj=await cloudFetch();
-    if(obj===null){ if(announce) toast("Sign in to OneDrive first."); return false; }
-    if(obj==="none"){ if(announce) toast("No file in OneDrive yet — use Send now to create it."); return false; }
-    applyBackup(obj,"OneDrive");
+    const obj=await ghGet();
+    if(obj==="none"){ if(announce) toast("No file in the repo yet — use Send now to create it."); return false; }
+    applyBackup(obj,"GitHub");
     cloudNews=null;
     return true;
-  }catch(e){ if(announce) toast("Couldn't read from OneDrive."); return false; }
+  }catch(e){ ghProblem(e,announce); return false; }
 }
 async function cloudCheck(){
-  if(!signedIn()) return;
+  if(!ghReady()) return;
   try{
-    const obj=await cloudFetch();
+    const obj=await ghGet();
     if(!obj || obj==="none") return;
-    const remote=obj.save||0;
-    if(remote > (state.saveNo||0)){
+    if((obj.save||0) > (state.saveNo||0)){
       cloudNews=obj;
-      toast("OneDrive has a newer copy (save"+String(remote).padStart(3,"0")+"). Open the save panel to load it.");
+      toast("GitHub has a newer copy (save"+String(obj.save||0).padStart(3,"0")+"). Open the save panel to load it.");
     }
-  }catch(e){ /* offline, no bother */ }
+  }catch(e){ /* offline is fine */ }
+}
+function ghDisconnect(){
+  lsSet(GH_TOKEN_KEY,""); state.cloudAuto=false; ghSha=null;
+  save(); openBackup(); toast("Disconnected. Nothing in the repo was deleted.");
 }
 function scheduleCloud(){
-  if(suppressCloud || !state.cloudAuto || !signedIn()) return;
+  if(suppressCloud || !state.cloudAuto || !ghReady()) return;
   clearTimeout(cloudTimer);
   cloudTimer=setTimeout(()=>cloudPush(false), 2500);
 }
@@ -1091,27 +1054,24 @@ function openBackup(){
   const last = n
     ? "Last saved as <b>save"+String(n).padStart(3,"0")+"</b> on "+fmtLong(state.savedAt)+". The next one will be <b>save"+String(n+1).padStart(3,"0")+"</b>."
     : "No file saved yet. The first will be <b>save001</b>.";
-  const cid=clientId();
   let cloudHtml;
-  if(!cid){
-    cloudHtml='<p>Syncs one file between every device, iPad included. Needs a free Microsoft app ID — the setup notes explain where to get one. Paste it here once.</p>'+
-      '<input class="idin" id="cdId" placeholder="Microsoft app (client) ID" spellcheck="false" autocomplete="off">'+
-      '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="cdSaveId">Save app ID</button></div>';
-  }else if(!signedIn()){
-    cloudHtml='<p>App ID saved. Sign in with the Microsoft account that holds your OneDrive. The app only gets its own folder, nothing else in your drive.</p>'+
-      '<div class="sheet-actions"><button class="btn primary" id="cdIn">Sign in to OneDrive</button>'+
-      '<button class="btn" id="cdClear">Change app ID</button></div>';
+  if(!ghReady()){
+    cloudHtml='<p>Keeps one file in a GitHub repo, shared by every device including iPad. Every change is a commit, so you get full history. Setup notes explain where the token comes from.</p>'+
+      '<input class="idin" id="ghRepoIn" placeholder="username/repo — e.g. stux/films-data" spellcheck="false" autocomplete="off" value="'+ghRepo().replace(/"/g,"&quot;")+'">'+
+      '<input class="idin" id="ghTokIn" type="password" placeholder="GitHub token (starts github_pat_ or ghp_)" spellcheck="false" autocomplete="off" style="margin-top:8px">'+
+      '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="ghSave">Connect</button></div>';
   }else{
     const newer = cloudNews
-      ? '<p style="color:var(--marquee)">OneDrive has a newer copy: save'+String(cloudNews.save||0).padStart(3,"0")+
+      ? '<p style="color:var(--marquee)">GitHub has a newer copy: save'+String(cloudNews.save||0).padStart(3,"0")+
         ', '+Object.keys(cloudNews.watched||{}).length+' watched. Load it to catch up.</p>' : '';
-    cloudHtml='<p>Signed in. '+(state.cloudAuto
-        ? 'Every change is sent to OneDrive a couple of seconds after you make it.'
-        : 'Automatic sending is off — use Send now.')+'</p>'+newer+
+    cloudHtml='<p>Connected to <b>'+ghRepo()+'</b>. '+(state.cloudAuto
+        ? 'Every change is committed a couple of seconds after you make it.'
+        : 'Automatic committing is off — use Send now.')+'</p>'+newer+
       '<div class="sheet-actions"><button class="btn primary" id="cdPush">Send now</button>'+
-      '<button class="btn" id="cdPull">Load from OneDrive</button>'+
+      '<button class="btn" id="cdPull">Load from GitHub</button>'+
       '<button class="btn" id="cdAuto">'+(state.cloudAuto?"Turn off automatic":"Turn on automatic")+'</button>'+
-      '<button class="btn danger" id="cdOut">Sign out</button></div>';
+      '<a class="btn" href="'+ghHistory()+'" target="_blank" rel="noopener">History</a>'+
+      '<button class="btn danger" id="cdOut">Disconnect</button></div>';
   }
   const linked = fileHandle
     ? '<p>Linked to <b>'+fileHandle.name+'</b>. '+(state.autoSave
@@ -1126,7 +1086,7 @@ function openBackup(){
           '<div class="sheet-actions"><button class="btn primary" id="lkNew">Link a file in OneDrive</button></div>'
         : '<p>This browser can\'t write directly to a file. Chrome or Edge on a Windows or Mac computer can. On iPad or iPhone, use Save to a file below instead.</p>');
   s.innerHTML='<h2 id="sheetTitle">Save &amp; restore</h2>'+
-    '<div class="backup-block"><h3>OneDrive sync — all devices</h3>'+cloudHtml+'</div>'+
+    '<div class="backup-block"><h3>GitHub sync — all devices</h3>'+cloudHtml+'</div>'+
     '<div class="backup-block"><h3>Linked file — this computer only</h3>'+linked+'</div>'+
     '<div class="backup-block"><h3>Save a copy</h3>'+
     '<p>Writes everything — ticks, tags, swaps and both histories — to a small file you can keep, back up, or move to another device. '+
@@ -1141,14 +1101,21 @@ function openBackup(){
     '<div class="sheet-actions" style="margin-top:9px"><button class="btn" id="bkPasteGo">Restore from code</button>'+
     '<button class="btn" id="sheetClose">Close</button></div></div>';
   const on=(id,fn)=>{ const el=s.querySelector(id); if(el) el.onclick=fn; };
-  on("#cdSaveId", ()=>{
-    const v=s.querySelector("#cdId").value.trim();
-    if(!v){ toast("Paste the app ID first."); return; }
-    lsSet(CID_KEY,v); openBackup(); toast("App ID saved.");
+  on("#ghSave", async ()=>{
+    const repo=s.querySelector("#ghRepoIn").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/$/,"");
+    const tok=s.querySelector("#ghTokIn").value.trim();
+    if(!/^[^\/\s]+\/[^\/\s]+$/.test(repo)){ toast("Repo should look like username/repo."); return; }
+    if(!tok){ toast("Paste the token as well."); return; }
+    lsSet(GH_REPO_KEY,repo); lsSet(GH_TOKEN_KEY,tok);
+    toast("Checking the connection...");
+    try{
+      const obj=await ghGet();
+      state.cloudAuto=true; save(); openBackup();
+      if(obj==="none") toast("Connected. No file there yet — use Send now to create it.");
+      else { cloudNews=obj; toast("Connected. Found save"+String(obj.save||0).padStart(3,"0")+" in the repo."); openBackup(); }
+    }catch(e){ ghProblem(e,true); lsSet(GH_TOKEN_KEY,""); openBackup(); }
   });
-  on("#cdClear", ()=>{ lsSet(CID_KEY,""); openBackup(); });
-  on("#cdIn", msSignIn);
-  on("#cdOut", msSignOut);
+  on("#cdOut", ghDisconnect);
   on("#cdPush", ()=>cloudPush(true));
   on("#cdPull", ()=>cloudPull(true));
   on("#cdAuto", ()=>{ state.cloudAuto=!state.cloudAuto; save(); openBackup();
