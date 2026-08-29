@@ -501,7 +501,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "3.10";
+const APP_VERSION = "3.11";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
@@ -1378,9 +1378,12 @@ function scheduleCloud(){
 }
 
 function backupPayload(n){
-  return JSON.stringify({app:"nate-film-catalogue", appVersion:APP_VERSION, schema:2,
+  return JSON.stringify({app:"nate-film-catalogue", appVersion:APP_VERSION, schema:3,
                          save:n, saved:new Date().toISOString(),
-                         shelf:state.shelf, watched:state.watched, tags:state.tags, log:state.log});
+                         shelf:state.shelf, watched:state.watched, tags:state.tags, log:state.log,
+                         picks:state.picks||{}, art:state.art||{}, posters:state.posters||{},
+                         ov:state.ov||{}, ovOn:!!state.ovOn,
+                         bg:state.bg||"", bgDim:state.bgDim});
 }
 function commitSave(n){
   state.saveNo = n;
@@ -1414,9 +1417,15 @@ function applyState(obj){
   state.watched = obj.watched||{};
   state.tags = obj.tags||{};
   state.log = obj.log||[];
-  state.picks = obj.picks||{};
-  state.art = obj.art||{};
-  state.posters = obj.posters||state.posters||{};
+  // Saves written before schema 3 have no picks/artwork. Keep whatever this
+  // device already holds rather than blanking it.
+  state.picks   = obj.picks   || state.picks   || {};
+  state.art     = obj.art     || state.art     || {};
+  state.posters = obj.posters || state.posters || {};
+  state.ov      = obj.ov      || state.ov      || {};
+  if(obj.ovOn!==undefined) state.ovOn = obj.ovOn;
+  if(obj.bg!==undefined)   state.bg   = obj.bg;
+  if(obj.bgDim!==undefined) state.bgDim = obj.bgDim;
   state.saveNo = obj.save || 0;
   state.savedAt = obj.saved || null;
   suppressCloud=true; save(); suppressCloud=false;
