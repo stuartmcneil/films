@@ -501,7 +501,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "3.8";
+const APP_VERSION = "3.9";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
@@ -1250,7 +1250,7 @@ function scheduleLinked(){
    HTTPS with no sign-in redirect. */
 const GH_TOKEN_KEY="nate-gh-token", GH_REPO_KEY="nate-gh-repo";
 const GH_PATH="nate-film-catalogue.json";
-let ghSha=null, cloudTimer=null, suppressCloud=false, cloudNews=null;
+let ghSha=null, cloudTimer=null, suppressCloud=false, cloudNews=null, cloudReady=false;
 
 const ghToken = () => lsGet(GH_TOKEN_KEY) || "";
 const ghRepo  = () => lsGet(GH_REPO_KEY) || "";
@@ -1271,7 +1271,7 @@ function b64dec(b64){
 
 async function ghGet(){
   if(!ghReady()) return null;
-  const r=await fetch(ghUrl()+"?ref=main&t="+Date.now(),{headers:ghHead()});
+  const r=await fetch(ghUrl()+"?ref=main&t="+Date.now(),{headers:ghHead(), cache:"no-store"});
   if(r.status===404) return "none";
   if(r.status===401||r.status===403) throw new Error("auth");
   if(!r.ok) throw new Error(String(r.status));
@@ -1307,6 +1307,16 @@ function ghProblem(e, announce){
 }
 async function cloudPush(announce){
   if(!ghReady()){ if(announce) toast("Add the repo and token first."); return false; }
+  try{
+    // Check first: never write over a save newer than the one this device holds
+    const remote=await ghGet();
+    if(remote && remote!=="none" && (remote.save||0) > (state.saveNo||0)){
+      cloudNews=remote;
+      toast("Not sent — GitHub has a newer copy (save"+String(remote.save||0).padStart(3,"0")+
+            "). Load it first so nothing is lost.");
+      return false;
+    }
+  }catch(e){ ghProblem(e,announce); return false; }
   const n=(state.saveNo||0)+1;
   try{
     await ghPut(n);
@@ -1327,22 +1337,25 @@ async function cloudPull(announce){
   }catch(e){ ghProblem(e,announce); return false; }
 }
 async function cloudCheck(){
-  if(!ghReady()) return;
+  if(!ghReady()){ cloudReady=true; return; }
   try{
     const obj=await ghGet();
-    if(!obj || obj==="none") return;
-    if((obj.save||0) > (state.saveNo||0)){
-      cloudNews=obj;
-      toast("GitHub has a newer copy (save"+String(obj.save||0).padStart(3,"0")+"). Open the save panel to load it.");
+    if(obj && obj!=="none" && (obj.save||0) > (state.saveNo||0)){
+      // Strictly newer than anything this device holds, so it is simply the
+      // latest — take it rather than asking and risk sending stale data up.
+      applyState(obj);
+      cloudNews=null;
+      toast("Loaded save"+String(obj.save||0).padStart(3,"0")+" from GitHub — the latest copy.");
     }
-  }catch(e){ /* offline is fine */ }
+  }catch(e){ /* offline is fine, carry on with the local copy */ }
+  cloudReady=true;
 }
 function ghDisconnect(){
   lsSet(GH_TOKEN_KEY,""); state.cloudAuto=false; ghSha=null;
   save(); openBackup(); toast("Disconnected. Nothing in the repo was deleted.");
 }
 function scheduleCloud(){
-  if(suppressCloud || !state.cloudAuto || !ghReady()) return;
+  if(suppressCloud || !state.cloudAuto || !ghReady() || !cloudReady) return;
   clearTimeout(cloudTimer);
   cloudTimer=setTimeout(()=>cloudPush(false), 2500);
 }
@@ -1379,6 +1392,19 @@ function downloadBackup(){
     toast("This viewer blocked the download. Copy the backup code instead.");
   }
 }
+function applyState(obj){
+  state.shelf = obj.shelf.filter(id=>id>=0 && id<ALL.length);
+  state.watched = obj.watched||{};
+  state.tags = obj.tags||{};
+  state.log = obj.log||[];
+  state.picks = obj.picks||{};
+  state.art = obj.art||{};
+  state.posters = obj.posters||state.posters||{};
+  state.saveNo = obj.save || 0;
+  state.savedAt = obj.saved || null;
+  suppressCloud=true; save(); suppressCloud=false;
+  render();
+}
 function applyBackup(obj, source){
   if(!obj || !Array.isArray(obj.shelf) || typeof obj.watched!=="object"){
     toast("That doesn't look like a catalogue backup."); return;
@@ -1389,13 +1415,8 @@ function applyBackup(obj, source){
     ? "\n\nHeads up: it was written by app version "+obj.appVersion+" and this is "+APP_VERSION+"." : "";
   if(!confirm("Restore "+label+" from "+source+"?\n\nThis replaces what's on screen now: "+
               obj.shelf.length+" films, "+seen+" watched, "+((obj.log||[]).length)+" removed."+mismatch)) return;
-  state.shelf = obj.shelf.filter(id=>id>=0 && id<ALL.length);
-  state.watched = obj.watched||{};
-  state.tags = obj.tags||{};
-  state.log = obj.log||[];
-  state.saveNo = obj.save || 0;
-  state.savedAt = obj.saved || null;
-  save(); closeSheet(); render();
+  applyState(obj);
+  closeSheet();
   toast("Restored "+label+". "+state.shelf.length+" films on the shelf, "+Object.keys(state.watched).length+" watched.");
 }
 function openBackup(){
