@@ -96,6 +96,25 @@
   .poster:after{content:"";position:absolute;inset:0;
     background:linear-gradient(115deg,rgba(255,255,255,.14) 0 32%,transparent 32.5%)}
   img.poster{object-fit:cover;background:var(--panel-2)}
+  .poster.lg{width:104px;height:152px;flex:0 0 104px;border-radius:5px}
+  .poster.lg .poster-ini{font-size:28px}
+  .poster.lg .poster-yr{font-size:11px}
+  .five{display:flex;gap:11px;overflow-x:auto;padding:4px 14px 14px;margin:0 -14px;scroll-snap-type:x mandatory}
+  .five::-webkit-scrollbar{display:none}
+  .five-card{flex:0 0 104px;scroll-snap-align:start;background:none;border:0;padding:0;cursor:pointer;
+    text-align:left;color:inherit;font:inherit;position:relative;display:flex;flex-direction:column}
+  .five-rank{position:absolute;top:-4px;left:-4px;width:22px;height:22px;border-radius:50%;
+    background:var(--marquee);color:#17130a;font-family:var(--display);font-size:12px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .five-title{font-size:12.5px;font-weight:600;line-height:1.25;margin-top:7px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .five-meta{font-size:10.5px;color:var(--muted);margin-top:3px}
+
+  /* Backdrop — original artwork, no franchise anything */
+  #backdrop{position:fixed;inset:0;z-index:-1;pointer-events:none;background-size:cover;
+    background-position:center;opacity:.5}
+  #backdrop svg{width:100%;height:100%;display:block}
+  body{position:relative}
   .poster-ini{font-family:var(--display);font-size:15px;font-weight:700;color:rgba(255,255,255,.94);letter-spacing:.04em;line-height:1}
   .poster-yr{font-size:8.5px;color:rgba(255,255,255,.62);letter-spacing:.06em;line-height:1}
   .stub-picks{display:inline-flex;gap:3px;margin-left:6px;vertical-align:1px}
@@ -149,6 +168,38 @@
 </head>
 <body>
 
+<div id="backdrop" aria-hidden="true">
+  <svg viewBox="0 0 400 800" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0b0e16"/>
+        <stop offset="55%" stop-color="#1a1526"/>
+        <stop offset="80%" stop-color="#3a2436"/>
+        <stop offset="100%" stop-color="#7d4a2c"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#f5a623" stop-opacity=".85"/>
+        <stop offset="60%" stop-color="#e2725b" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="#e2725b" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="400" height="800" fill="url(#sky)"/>
+    <g fill="#fff">
+      <circle cx="38" cy="62" r="1.1" opacity=".7"/><circle cx="112" cy="34" r=".8" opacity=".5"/>
+      <circle cx="186" cy="88" r="1.3" opacity=".8"/><circle cx="248" cy="46" r=".9" opacity=".55"/>
+      <circle cx="322" cy="72" r="1.1" opacity=".65"/><circle cx="366" cy="126" r=".8" opacity=".45"/>
+      <circle cx="70" cy="148" r=".9" opacity=".5"/><circle cx="152" cy="176" r="1.2" opacity=".6"/>
+      <circle cx="284" cy="158" r=".85" opacity=".5"/><circle cx="208" cy="238" r="1" opacity=".45"/>
+      <circle cx="94" cy="262" r=".8" opacity=".4"/><circle cx="344" cy="228" r="1.1" opacity=".5"/>
+    </g>
+    <circle cx="286" cy="556" r="150" fill="url(#glow)"/>
+    <circle cx="286" cy="556" r="27" fill="#f5a623" opacity=".55"/>
+    <path d="M0 604 C 78 566, 150 620, 226 592 C 300 566, 350 600, 400 580 L400 800 L0 800 Z" fill="#2a1a24" opacity=".92"/>
+    <path d="M0 672 C 92 636, 168 690, 252 664 C 322 642, 362 674, 400 656 L400 800 L0 800 Z" fill="#1c1220" opacity=".95"/>
+    <path d="M0 742 C 104 712, 190 756, 276 736 C 336 722, 370 744, 400 734 L400 800 L0 800 Z" fill="#120e19"/>
+  </svg>
+</div>
+
 <header>
   <div class="wrap">
     <div class="head-row">
@@ -184,6 +235,11 @@
 
   <!-- CATALOGUE -->
   <section id="panel-catalogue">
+    <div id="fiveWrap">
+      <p class="section-head" style="margin:16px 0 4px">Next five</p>
+      <p class="note" id="fiveNote">The top of the queue, ready to pick from.</p>
+      <div class="five" id="five"></div>
+    </div>
     <div class="chips" id="peopleChips"></div>
     <div class="chips" id="chips"></div>
     <div class="row-controls">
@@ -458,7 +514,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "3.3";
+const APP_VERSION = "3.4";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
@@ -572,15 +628,16 @@ const tmdbKey = () => lsGet(TMDB_KEY_STORE) || "";
 const POSTER_TTL = 150*24*3600*1000;   // under TMDB's six-month caching limit
 let posterQueue=[], posterBusy=false;
 
-function posterFor(f){
+function posterFor(f,extra){
+  const cls="poster"+(extra?" "+extra:"");
   const p=(state.posters||{})[f.id];
   const fresh = p && (Date.now()-p.at) < POSTER_TTL;
   if(fresh && p.path)
-    return '<img class="poster" src="https://image.tmdb.org/t/p/w154'+p.path+'" alt="" loading="lazy" '+
+    return '<img class="'+cls+'" src="https://image.tmdb.org/t/p/w342'+p.path+'" alt="" loading="lazy" '+
            'onerror="this.replaceWith(document.createRange().createContextualFragment(this.dataset.fb))" '+
-           'data-fb="'+posterTile(f).replace(/"/g,"&quot;")+'">';
+           'data-fb="'+posterTile(f,extra).replace(/"/g,"&quot;")+'">';
   if(tmdbKey() && !fresh) queuePoster(f.id);
-  return posterTile(f);
+  return posterTile(f,extra);
 }
 function queuePoster(id){
   if(posterQueue.indexOf(id)===-1){ posterQueue.push(id); runPosterQueue(); }
@@ -617,13 +674,13 @@ async function fetchAllPosters(){
     if(!p || (Date.now()-p.at)>POSTER_TTL) queuePoster(f.id);
   });
 }
-function posterTile(f){
+function posterTile(f,extra){
   const base={Action:8,Adventure:30,"Sci-Fi":205,Superhero:268,Comedy:45,Animated:168};
   const seed=Array.from(f.title).reduce((a,c)=>a+c.charCodeAt(0),0);
   const h=((base[f.genre]||210)+(seed%24)-12+360)%360;
   const ini=f.title.replace(/^(The|A|An) /,"").split(/[\s:.,\u2013-]+/)
             .filter(Boolean).slice(0,3).map(w=>w[0]).join("").toUpperCase().replace(/[^A-Z0-9]/g,"");
-  return '<span class="poster" style="background:linear-gradient(155deg,hsl('+h+' 52% 34%),hsl('+((h+24)%360)+' 58% 15%))">'+
+  return '<span class="poster'+(extra?" "+extra:"")+'" style="background:linear-gradient(155deg,hsl('+h+' 52% 34%),hsl('+((h+24)%360)+' 58% 15%))">'+
          '<span class="poster-ini">'+(ini||"?")+'</span><span class="poster-yr">'+f.year+'</span></span>';
 }
 function pickDots(id){
@@ -755,7 +812,25 @@ function renderPeopleChips(){
     box.appendChild(b);
   });
 }
+function renderFive(){
+  const box=document.getElementById("five"); box.innerHTML="";
+  const top=onShelf().filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no")
+    .sort((a,b)=>pickCount(b.id)-pickCount(a.id) || b.rating-a.rating || a.year-b.year)
+    .slice(0,5);
+  document.getElementById("fiveWrap").hidden = top.length===0;
+  top.forEach((f,i)=>{
+    const b=document.createElement("button"); b.className="five-card"; b.type="button";
+    b.innerHTML=posterFor(f,"lg")+
+      '<span class="five-rank">'+(i+1)+'</span>'+
+      '<span class="five-title"></span>'+
+      '<span class="five-meta">'+f.mins+' min · '+f.rating.toFixed(1)+pickDots(f.id)+'</span>';
+    b.querySelector(".five-title").textContent=f.title;
+    b.onclick=()=>openSheet(f.id);
+    box.appendChild(b);
+  });
+}
 function renderChips(){
+  renderFive();
   renderPeopleChips();
   const box=document.getElementById("chips"); box.innerHTML="";
   const shelf = onShelf();
@@ -934,7 +1009,16 @@ function renderRemoved(){
   });
 }
 
+function applyBackdrop(){
+  const el=document.getElementById("backdrop");
+  const url=state.bg||"";
+  const svg=el.querySelector("svg");
+  if(url){ el.style.backgroundImage='url("'+url.replace(/"/g,'\\"')+'")'; if(svg) svg.style.display="none"; }
+  else   { el.style.backgroundImage=""; if(svg) svg.style.display="block"; }
+  el.style.opacity = (state.bgDim===undefined?50:state.bgDim)/100;
+}
 function render(){
+  applyBackdrop();
   document.getElementById("tmdbNote").hidden = !tmdbKey();
   renderCounts(); renderChips(); renderList(); renderNext(); renderWatched(); renderRemoved();
 }
@@ -1268,6 +1352,13 @@ function openBackup(){
     : '<p>Real poster artwork needs a free key from The Movie Database — IMDb has no free API. Setup notes explain where to get one. Without a key the app draws its own tiles.</p>'+
       '<input class="idin" id="tmKey" placeholder="TMDB API key" spellcheck="false" autocomplete="off">'+
       '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="tmSave">Turn on posters</button></div>';
+  const dim = state.bgDim===undefined?50:state.bgDim;
+  const bgHtml = '<p>The built-in artwork is original — I can\'t use fan art of Dune, Star Wars or anything else, since it\'s built on studio-owned characters and designs. Point this at any image you have the right to use and it replaces the backdrop.</p>'+
+    '<input class="idin" id="bgUrl" placeholder="https://… image address (leave empty for the built-in art)" spellcheck="false" value="'+(state.bg||"").replace(/"/g,"&quot;")+'">'+
+    '<p style="margin:11px 0 6px">Strength: <b id="bgVal">'+dim+'%</b></p>'+
+    '<input type="range" id="bgDim" min="10" max="100" value="'+dim+'" style="width:100%">'+
+    '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="bgSave">Apply</button>'+
+    '<button class="btn" id="bgReset">Back to built-in art</button></div>';
   const linked = fileHandle
     ? '<p>Linked to <b>'+fileHandle.name+'</b>. '+(state.autoSave
         ? 'Every change is written to it automatically.'
@@ -1283,6 +1374,7 @@ function openBackup(){
   s.innerHTML='<h2 id="sheetTitle">Save &amp; restore</h2>'+
     '<div class="backup-block"><h3>GitHub sync — all devices</h3>'+cloudHtml+'</div>'+
     '<div class="backup-block"><h3>Posters</h3>'+postersHtml+'</div>'+
+    '<div class="backup-block"><h3>Background</h3>'+bgHtml+'</div>'+
     '<div class="backup-block"><h3>Linked file — this computer only</h3>'+linked+'</div>'+
     '<div class="backup-block"><h3>Save a copy</h3>'+
     '<p>Writes everything — ticks, tags, swaps and both histories — to a small file you can keep, back up, or move to another device. '+
@@ -1316,6 +1408,13 @@ function openBackup(){
   on("#cdPull", ()=>cloudPull(true));
   on("#cdAuto", ()=>{ state.cloudAuto=!state.cloudAuto; save(); openBackup();
                       toast(state.cloudAuto?"Automatic sending on.":"Automatic sending off."); });
+  const dimIn=s.querySelector("#bgDim");
+  if(dimIn) dimIn.oninput=()=>{ s.querySelector("#bgVal").textContent=dimIn.value+"%";
+                                state.bgDim=+dimIn.value; applyBackdrop(); };
+  on("#bgSave", ()=>{ state.bg=s.querySelector("#bgUrl").value.trim();
+                      state.bgDim=+s.querySelector("#bgDim").value;
+                      save(); applyBackdrop(); toast(state.bg?"Background updated.":"Back to the built-in artwork."); });
+  on("#bgReset", ()=>{ state.bg=""; save(); openBackup(); applyBackdrop(); toast("Back to the built-in artwork."); });
   on("#tmSave", ()=>{
     const v=s.querySelector("#tmKey").value.trim();
     if(!v){ toast("Paste the key first."); return; }
