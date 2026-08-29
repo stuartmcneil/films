@@ -18,8 +18,11 @@
   .wrap{max-width:720px;margin:0 auto;padding:0 14px}
 
   .head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .head-actions{display:flex;gap:8px;flex:0 0 auto}
   .iconbtn{flex:0 0 auto;background:var(--panel-2);border:1px solid var(--rule);color:var(--marquee);border-radius:8px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
   .iconbtn:hover,.iconbtn:focus{border-color:var(--marquee)}
+  #resetBtn{color:var(--warm)}
+  #resetBtn:hover,#resetBtn:focus{border-color:var(--warm)}
   .iconbtn svg{width:20px;height:20px;display:block}
   .backup-block{border-top:1px solid var(--rule);margin-top:18px;padding-top:16px}
   .backup-block:first-of-type{border-top:0;margin-top:0;padding-top:0}
@@ -99,12 +102,12 @@
   .poster:after{content:"";position:absolute;inset:0;
     background:linear-gradient(115deg,rgba(255,255,255,.14) 0 32%,transparent 32.5%)}
   img.poster{object-fit:cover;background:var(--panel-2)}
-  .poster.lg{width:104px;height:152px;flex:0 0 104px;border-radius:5px}
+  .poster.lg{width:98px;height:143px;flex:0 0 98px;border-radius:5px}
   .poster.lg .poster-ini{font-size:28px}
   .poster.lg .poster-yr{font-size:11px}
-  .five{display:flex;gap:11px;overflow-x:auto;padding:4px 14px 14px;margin:0 -14px;scroll-snap-type:x mandatory}
+  .five{display:flex;gap:10px;overflow-x:auto;padding:4px 14px 14px;margin:0 -14px;scroll-snap-type:x mandatory}
   .five::-webkit-scrollbar{display:none}
-  .five-card{flex:0 0 104px;scroll-snap-align:start;background:none;border:0;padding:0;cursor:pointer;
+  .five-card{flex:0 0 98px;scroll-snap-align:start;background:none;border:0;padding:0;cursor:pointer;
     text-align:left;color:inherit;font:inherit;position:relative;display:flex;flex-direction:column}
   .five-rank{position:absolute;top:-4px;left:-4px;width:22px;height:22px;border-radius:50%;
     background:var(--marquee);color:#17130a;font-family:var(--display);font-size:12px;font-weight:700;
@@ -182,12 +185,21 @@
         <h1>Nate's Film <span class="amp">Catalogue</span></h1>
         <p class="tagline">Tag it, tick it, swap it out. The shelf stays at 150.</p>
       </div>
-      <button class="iconbtn" id="backupBtn" title="Save or restore your progress" aria-label="Save or restore your progress">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/>
-          <path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>
-        </svg>
-      </button>
+      <div class="head-actions">
+        <button class="iconbtn" id="resetBtn" title="Refresh and clear stored data" aria-label="Refresh and clear stored data">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+          </svg>
+        </button>
+        <button class="iconbtn" id="backupBtn" title="Save or restore your progress" aria-label="Save or restore your progress">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/>
+            <path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>
+          </svg>
+        </button>
+      </div>
     </div>
     <div class="progress">
       <div class="progress-bar"><div class="progress-fill" id="fill"></div></div>
@@ -211,7 +223,7 @@
   <!-- CATALOGUE -->
   <section id="panel-catalogue">
     <div id="fiveWrap">
-      <p class="section-head" style="margin:16px 0 4px">Next five</p>
+      <p class="section-head" style="margin:16px 0 4px">Next six</p>
       <p class="note" id="fiveNote">The top of the queue, ready to pick from.</p>
       <div class="five" id="five"></div>
     </div>
@@ -489,7 +501,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "3.7";
+const APP_VERSION = "3.8";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
@@ -529,6 +541,9 @@ async function load(){
   if(!raw) await migrateFromV1(false);
   if(FS_OK){
     try{ const h=await idbGet("handle"); if(h) fileHandle=h; }catch(e){ /* no linked file */ }
+  }
+  if(new URLSearchParams(location.search).get("fresh")){
+    try{ history.replaceState({},"",location.pathname); }catch(e){}
   }
   cloudCheck();
 }
@@ -599,6 +614,52 @@ function togglePick(id,k){
   const bg=document.getElementById("sheetBg");
   if(bg.classList.contains("open") && bg.dataset.film==String(id)) openSheet(id);
 }
+const OV_TERMS = {
+  Action:"motorcycle chase night city", Adventure:"mountain expedition jungle trail",
+  "Sci-Fi":"nebula galaxy stars space", Superhero:"city skyline night dramatic",
+  Comedy:"confetti celebration colourful", Animated:"colourful abstract paint illustration"
+};
+let ovBusy=false;
+async function fetchOvPool(genre){
+  const url="https://api.openverse.org/v1/images/?q="+encodeURIComponent(OV_TERMS[genre]||genre)+
+            "&license_type=all&page_size=20&mature=false";
+  const r=await fetch(url,{headers:{Accept:"application/json"}});
+  if(r.status===429) throw new Error("rate");
+  if(!r.ok) throw new Error(String(r.status));
+  const j=await r.json();
+  return (j.results||[]).filter(x=>x.thumbnail||x.url).map(x=>({
+    u:x.thumbnail||x.url, t:x.title||"Untitled",
+    c:x.creator||"Unknown", l:(x.license||"").toUpperCase()+(x.license_version?" "+x.license_version:""),
+    s:x.foreign_landing_url||x.url
+  }));
+}
+async function fetchOpenverse(){
+  if(ovBusy) return; ovBusy=true;
+  state.ov=state.ov||{};
+  toast("Fetching open-licensed photos, one search per genre.");
+  for(const g of GENRES.filter(x=>x!=="All")){
+    if((state.ov[g]||[]).length) continue;
+    try{ state.ov[g]=await fetchOvPool(g); }
+    catch(e){
+      toast(e.message==="rate" ? "Openverse rate limit reached — try again in an hour."
+                               : "Couldn't reach Openverse.");
+      break;
+    }
+    await new Promise(r=>setTimeout(r,400));
+  }
+  ovBusy=false;
+  suppressCloud=true; save(); suppressCloud=false;
+  render();
+  const n=Object.keys(state.ov||{}).reduce((a,g)=>a+(state.ov[g]||[]).length,0);
+  if(n) toast(n+" photos ready across "+Object.keys(state.ov).length+" genres.");
+}
+function ovFor(f){
+  if(!state.ovOn) return null;
+  const pool=(state.ov||{})[f.genre]||[];
+  if(!pool.length) return null;
+  const seed=Array.from(f.title).reduce((a,c)=>a+c.charCodeAt(0),0)+f.year;
+  return pool[seed % pool.length];
+}
 const TMDB_KEY_STORE="nate-tmdb-key";
 const tmdbKey = () => lsGet(TMDB_KEY_STORE) || "";
 const POSTER_TTL = 150*24*3600*1000;   // under TMDB's six-month caching limit
@@ -619,6 +680,12 @@ function posterFor(f,extra){
            'onerror="this.replaceWith(document.createRange().createContextualFragment(this.dataset.fb))" '+
            'data-fb="'+posterTile(f,extra).replace(/"/g,"&quot;")+'">';
   if(tmdbKey() && !fresh) queuePoster(f.id);
+  const ov=ovFor(f);
+  if(ov){
+    return '<img class="'+cls+'" src="'+ov.u.replace(/"/g,"&quot;")+'" alt="" loading="lazy" '+
+           'onerror="this.replaceWith(document.createRange().createContextualFragment(this.dataset.fb))" '+
+           'data-fb="'+posterTile(f,extra).replace(/"/g,"&quot;")+'">';
+  }
   return posterTile(f,extra);
 }
 function queuePoster(id){
@@ -798,7 +865,7 @@ function renderFive(){
   const box=document.getElementById("five"); box.innerHTML="";
   const top=onShelf().filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no")
     .sort((a,b)=>pickCount(b.id)-pickCount(a.id) || b.rating-a.rating || a.year-b.year)
-    .slice(0,5);
+    .slice(0,6);
   document.getElementById("fiveWrap").hidden = top.length===0;
   top.forEach((f,i)=>{
     const b=document.createElement("button"); b.className="five-card"; b.type="button";
@@ -1040,6 +1107,9 @@ function openSheet(id){
     '<div class="tag-row"><span class="tag-label">Tag it</span><div class="tag-opts">'+
       Object.keys(TAGS).map(k=>'<button class="tagbtn '+k+'" data-tag="'+k+'" aria-pressed="'+(t===k)+'">'+TAGS[k]+'</button>').join("")+
     '</div></div>'+
+    (function(){ const ov=ovFor(f); if(!ov||(state.art||{})[id]) return "";
+      return '<p class="note" style="margin:-6px 0 14px">Photo: '+ov.t+' by '+ov.c+
+             (ov.l?' ('+ov.l+')':'')+' via <a href="'+ov.s+'" target="_blank" rel="noopener" style="color:var(--marquee)">Openverse</a></p>'; })()+
     '<div class="tag-row"><span class="tag-label">Your own artwork</span>'+
       '<input class="idin" id="artUrl" placeholder="https://… image address" spellcheck="false" '+
       'value="'+((state.art||{})[id]||"").replace(/"/g,"&quot;")+'">'+
@@ -1355,6 +1425,13 @@ function openBackup(){
       '<button class="btn danger" id="cdOut">Disconnect</button></div>';
   }
   const nP=Object.keys(state.posters||{}).filter(k=>(state.posters[k]||{}).path).length;
+  const ovCount=Object.keys(state.ov||{}).reduce((a,g)=>a+((state.ov||{})[g]||[]).length,0);
+  const ovHtml = '<p>Openverse only carries openly-licensed work, so it has no film posters — searching it by title returns unrelated pictures. What it can do is give each genre a set of freely-usable photographs, shared out across the films in it. Six searches, credited per image.</p>'+
+    '<p>'+(state.ovOn?'On. '+ovCount+' photos stored.':'Off. Films fall back to the generated tiles.')+'</p>'+
+    '<div class="sheet-actions">'+
+      '<button class="btn '+(state.ovOn?'':'primary')+'" id="ovToggle">'+(state.ovOn?'Turn off':'Turn on')+'</button>'+
+      (state.ovOn?'<button class="btn" id="ovGet">Fetch photos</button><button class="btn danger" id="ovClear">Clear photos</button>':'')+
+    '</div>';
   const postersHtml = tmdbKey()
     ? '<p>Poster artwork is on, from The Movie Database. '+nP+' found so far. Films without a match keep their generated tile.</p>'+
       '<div class="sheet-actions"><button class="btn primary" id="tmAll">Fetch all posters</button>'+
@@ -1384,6 +1461,7 @@ function openBackup(){
   s.innerHTML='<h2 id="sheetTitle">Save &amp; restore</h2>'+
     '<div class="backup-block"><h3>GitHub sync — all devices</h3>'+cloudHtml+'</div>'+
     '<div class="backup-block"><h3>Posters</h3>'+postersHtml+'</div>'+
+    '<div class="backup-block"><h3>Openverse photos</h3>'+ovHtml+'</div>'+
     '<div class="backup-block"><h3>Background</h3>'+bgHtml+'</div>'+
     '<div class="backup-block"><h3>Linked file — this computer only</h3>'+linked+'</div>'+
     '<div class="backup-block"><h3>Save a copy</h3>'+
@@ -1425,6 +1503,10 @@ function openBackup(){
                       state.bgDim=+s.querySelector("#bgDim").value;
                       save(); applyBackdrop(); toast(state.bg?"Background updated.":"Back to the built-in artwork."); });
   on("#bgReset", ()=>{ state.bg=""; save(); openBackup(); applyBackdrop(); toast("Back to the built-in artwork."); });
+  on("#ovToggle", ()=>{ state.ovOn=!state.ovOn; save(); openBackup(); render();
+                        if(state.ovOn && !Object.keys(state.ov||{}).length) fetchOpenverse(); });
+  on("#ovGet", fetchOpenverse);
+  on("#ovClear", ()=>{ state.ov={}; save(); openBackup(); render(); toast("Photos cleared."); });
   on("#tmSave", ()=>{
     const v=s.querySelector("#tmKey").value.trim();
     if(!v){ toast("Paste the key first."); return; }
@@ -1461,6 +1543,42 @@ function openBackup(){
   bg.classList.add("open"); s.scrollTop=0;
 }
 document.getElementById("backupBtn").onclick=openBackup;
+document.getElementById("resetBtn").onclick=openReset;
+
+function freshReload(){
+  location.replace(location.pathname+"?fresh="+Date.now());
+}
+function wipeDevice(){
+  const connected = ghReady();
+  const msg = "Clear everything this app has stored on this device?\n\n"+
+    "Goes: ticks, tags, picks, artwork choices, poster cache, and your saved keys.\n"+
+    (connected ? "Safe: your GitHub copy. Reconnect and use Load from GitHub to get it all back."
+               : "WARNING: you are not connected to GitHub, so this progress is not backed up anywhere. Save a file first if you want to keep it.");
+  if(!confirm(msg)) return;
+  try{ Object.keys(localStorage).filter(k=>k.indexOf("nate-")===0).forEach(k=>localStorage.removeItem(k)); }catch(e){}
+  try{ indexedDB.deleteDatabase("nate-catalogue-link"); }catch(e){}
+  if(window.storage){ try{ window.storage.delete(KEY); }catch(e){} }
+  freshReload();
+}
+function openReset(){
+  const bg=document.getElementById("sheetBg"), sh=document.getElementById("sheet");
+  bg.dataset.film="";
+  sh.innerHTML='<h2 id="sheetTitle">Refresh &amp; reset</h2>'+
+    '<div class="backup-block"><h3>Get a fresh copy of the page</h3>'+
+    '<p>Reloads past the browser\'s stored copy. Use this after uploading a new version. Nothing is lost.</p>'+
+    '<div class="sheet-actions"><button class="btn primary" id="rsFresh">Reload fresh</button></div></div>'+
+    '<div class="backup-block"><h3>Clear this device\'s data</h3>'+
+    '<p>Wipes ticks, tags, picks, artwork and saved keys from this device only. '+
+    (ghReady()?'Your GitHub copy is untouched — reconnect and load it back.':'You are not connected to GitHub, so nothing is backed up. Save a file first.')+'</p>'+
+    '<div class="sheet-actions"><button class="btn danger" id="rsWipe">Clear device data</button></div></div>'+
+    '<div class="backup-block"><h3>The real browser cache</h3>'+
+    '<p>No web page can clear that — only the browser can. Windows: Ctrl+Shift+R, or Ctrl+Shift+Delete. iPad: Settings, Safari, Clear History and Website Data.</p>'+
+    '<div class="sheet-actions"><button class="btn" id="sheetClose">Close</button></div></div>';
+  sh.querySelector("#rsFresh").onclick=freshReload;
+  sh.querySelector("#rsWipe").onclick=wipeDevice;
+  sh.querySelector("#sheetClose").onclick=closeSheet;
+  bg.classList.add("open"); sh.scrollTop=0;
+}
 document.getElementById("fileIn").onchange=e=>{
   const file=e.target.files&&e.target.files[0];
   if(!file) return;
