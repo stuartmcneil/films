@@ -84,6 +84,22 @@
   .badge.maybe{background:rgba(122,167,232,.16);color:var(--cool)}
   .badge.no{background:rgba(226,114,91,.16);color:var(--warm)}
   .badge.new{background:rgba(78,201,164,.16);color:var(--seen)}
+  .badge.again{background:rgba(180,140,235,.18);color:#c3a2f0}
+  .film-main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .picks{display:flex;gap:6px;margin-top:8px}
+  .pick{width:27px;height:27px;border-radius:50%;border:1.5px solid var(--rule);background:transparent;
+    color:var(--muted);font-family:var(--display);font-size:12px;font-weight:600;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;padding:0;letter-spacing:.02em}
+  .poster{flex:0 0 42px;width:42px;height:60px;border-radius:3px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:3px;overflow:hidden;position:relative;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.10), 0 2px 5px rgba(0,0,0,.35)}
+  .poster:after{content:"";position:absolute;inset:0;
+    background:linear-gradient(115deg,rgba(255,255,255,.14) 0 32%,transparent 32.5%)}
+  .poster-ini{font-family:var(--display);font-size:15px;font-weight:700;color:rgba(255,255,255,.94);letter-spacing:.04em;line-height:1}
+  .poster-yr{font-size:8.5px;color:rgba(255,255,255,.62);letter-spacing:.06em;line-height:1}
+  .stub-picks{display:inline-flex;gap:3px;margin-left:6px;vertical-align:1px}
+  .dot{width:13px;height:13px;border-radius:50%;font-size:8px;font-weight:700;color:#12151d;
+    display:inline-flex;align-items:center;justify-content:center;font-family:var(--display)}
   .empty{padding:34px 4px;color:var(--muted);text-align:center;font-size:14px}
 
   /* history */
@@ -114,6 +130,7 @@
   .tagbtn{border:1px solid var(--rule);background:var(--panel-2);color:var(--muted);border-radius:99px;padding:8px 13px;font-size:12.5px;cursor:pointer}
   .tagbtn[aria-pressed="true"].fav{background:var(--marquee);border-color:var(--marquee);color:#17130a;font-weight:600}
   .tagbtn[aria-pressed="true"].maybe{background:var(--cool);border-color:var(--cool);color:#0a1626;font-weight:600}
+  .tagbtn[aria-pressed="true"].again{background:#b48ceb;border-color:#b48ceb;color:#17102a;font-weight:600}
   .tagbtn[aria-pressed="true"].no{background:var(--warm);border-color:var(--warm);color:#26100b;font-weight:600}
   .sheet-actions{display:flex;gap:9px;flex-wrap:wrap}
   .btn{font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-size:12.5px;padding:11px 15px;border-radius:7px;border:1px solid var(--rule);background:var(--panel-2);color:var(--paper);cursor:pointer;text-decoration:none;display:inline-block}
@@ -166,6 +183,7 @@
 
   <!-- CATALOGUE -->
   <section id="panel-catalogue">
+    <div class="chips" id="peopleChips"></div>
     <div class="chips" id="chips"></div>
     <div class="row-controls">
       <select id="sort" aria-label="Sort films">
@@ -174,6 +192,7 @@
         <option value="yearOld">Sort: oldest first</option>
         <option value="title">Sort: A–Z</option>
         <option value="short">Sort: shortest first</option>
+        <option value="wanted">Sort: most wanted</option>
         <option value="tagged">Sort: tagged first</option>
       </select>
       <label class="toggle"><input type="checkbox" id="hideWatched"> Hide watched</label>
@@ -185,8 +204,13 @@
   <!-- UP NEXT -->
   <section id="panel-next" hidden>
     <p class="section-head">Ten best still unwatched</p>
-    <p class="note">Ranked by rating, ignoring anything tagged "not interested". Reshuffles every time you tick one off.</p>
+    <p class="note">Ranked by how many of you want it, then by rating. Anything tagged "not interested" is left out.</p>
     <div class="stubs" id="stubs"></div>
+    <div id="againWrap" hidden>
+      <p class="section-head" style="margin-top:22px">Worth another look</p>
+      <p class="note">Films tagged "watch again".</p>
+      <div class="stubs" id="againStubs"></div>
+    </div>
   </section>
 
   <!-- WATCHED -->
@@ -428,19 +452,23 @@ const ALL = SHELF.concat(BENCH).map((r,i)=>({
 }));
 const SHELF_N = SHELF.length;
 const GENRES = ["All","Action","Adventure","Sci-Fi","Superhero","Comedy","Animated"];
-const TAGS = {fav:"Favourite", maybe:"Maybe later", no:"Not interested"};
-const APP_VERSION = "3.1";
+const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not interested"};
+const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
+                {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
+                {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
+const APP_VERSION = "3.2";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
   shelf: Array.from({length:SHELF_N},(_,i)=>i), // ids currently in the catalogue
   watched: {},   // id -> ISO date
-  tags: {},      // id -> 'fav' | 'maybe' | 'no'
+  tags: {},      // id -> 'fav' | 'again' | 'maybe' | 'no'
+  picks: {},     // id -> {stu:true, nate:true, ...} — who wants to watch it
   log: [],       // {id, date, tag, swapIn}
   saveNo: 0,     // increments every time a backup file is written
   savedAt: null  // when that last backup was written
 };
-let ui = {tab:"catalogue", genre:"All", sort:"acclaim", hide:false};
+let ui = {tab:"catalogue", genre:"All", person:"any", sort:"acclaim", hide:false};
 
 /* ---------- storage ---------- */
 /* Two places to save. Inside Claude there's window.storage; in an ordinary
@@ -525,6 +553,32 @@ const F = id => ALL[id];
 const onShelf = () => state.shelf.map(F);
 const isWatched = id => !!state.watched[id];
 const tagOf = id => state.tags[id] || null;
+const picksOf = id => state.picks[id] || {};
+const pickCount = id => Object.keys(picksOf(id)).length;
+const person = k => PEOPLE.find(p=>p.k===k);
+function togglePick(id,k){
+  const p=Object.assign({},picksOf(id));
+  if(p[k]) delete p[k]; else p[k]=true;
+  if(Object.keys(p).length) state.picks[id]=p; else delete state.picks[id];
+  save(); render();
+  const bg=document.getElementById("sheetBg");
+  if(bg.classList.contains("open") && bg.dataset.film==String(id)) openSheet(id);
+}
+function posterTile(f){
+  const base={Action:8,Adventure:30,"Sci-Fi":205,Superhero:268,Comedy:45,Animated:168};
+  const seed=Array.from(f.title).reduce((a,c)=>a+c.charCodeAt(0),0);
+  const h=((base[f.genre]||210)+(seed%24)-12+360)%360;
+  const ini=f.title.replace(/^(The|A|An) /,"").split(/[\s:.,\u2013-]+/)
+            .filter(Boolean).slice(0,3).map(w=>w[0]).join("").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  return '<span class="poster" style="background:linear-gradient(155deg,hsl('+h+' 52% 34%),hsl('+((h+24)%360)+' 58% 15%))">'+
+         '<span class="poster-ini">'+(ini||"?")+'</span><span class="poster-yr">'+f.year+'</span></span>';
+}
+function pickDots(id){
+  const p=picksOf(id);
+  const on=PEOPLE.filter(x=>p[x.k]);
+  if(!on.length) return "";
+  return '<span class="stub-picks">'+on.map(x=>'<span class="dot" style="background:'+x.c+'" title="'+x.n+'">'+x.i+'</span>').join("")+'</span>';
+}
 const fmt = iso => iso ? new Date(iso).toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "Earlier";
 const fmtLong = iso => iso ? new Date(iso).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}) : "before this version";
 
@@ -549,6 +603,7 @@ function sortFilms(a){
     case "yearOld": return arr.sort((x,y)=>x.year-y.year||y.rating-x.rating);
     case "title":   return arr.sort((x,y)=>x.title.localeCompare(y.title));
     case "short":   return arr.sort((x,y)=>x.mins-y.mins);
+    case "wanted":  return arr.sort((x,y)=>pickCount(y.id)-pickCount(x.id)||y.rating-x.rating);
     case "tagged":  { const o={fav:0,maybe:1,no:2}; return arr.sort((x,y)=>
                       (o[tagOf(x.id)]??3)-(o[tagOf(y.id)]??3) || y.rating-x.rating); }
     default:        return arr.sort((x,y)=>y.rating-x.rating||x.year-y.year);
@@ -619,7 +674,26 @@ function renderCounts(){
     Math.min(10, shelf.filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no").length);
 }
 
+function renderPeopleChips(){
+  const box=document.getElementById("peopleChips"); box.innerHTML="";
+  const opts=[{k:"any",label:"Anyone"}]
+    .concat(PEOPLE.map(p=>({k:p.k,label:p.n,c:p.c})))
+    .concat([{k:"all",label:"All three"}]);
+  opts.forEach(o=>{
+    const n = o.k==="any" ? onShelf().length
+      : o.k==="all" ? onShelf().filter(f=>pickCount(f.id)===PEOPLE.length).length
+      : onShelf().filter(f=>picksOf(f.id)[o.k]).length;
+    const b=document.createElement("button");
+    b.className="chip"; b.type="button";
+    b.setAttribute("aria-pressed", ui.person===o.k);
+    b.textContent=o.label+" "+n;
+    if(ui.person===o.k && o.c){ b.style.background=o.c; b.style.borderColor=o.c; b.style.color="#12151d"; }
+    b.onclick=()=>{ ui.person=o.k; render(); };
+    box.appendChild(b);
+  });
+}
 function renderChips(){
+  renderPeopleChips();
   const box=document.getElementById("chips"); box.innerHTML="";
   const shelf = onShelf();
   GENRES.forEach(g=>{
@@ -643,6 +717,8 @@ function renderList(){
 
   let films = onShelf();
   if(ui.genre!=="All") films=films.filter(f=>f.genre===ui.genre);
+  if(ui.person==="all") films=films.filter(f=>pickCount(f.id)===PEOPLE.length);
+  else if(ui.person!=="any") films=films.filter(f=>picksOf(f.id)[ui.person]);
   if(ui.hide) films=films.filter(f=>!isWatched(f.id));
   films = sortFilms(films);
 
@@ -670,10 +746,27 @@ function renderList(){
     body.querySelector(".tt").textContent=f.title;
     body.onclick=()=>openSheet(f.id);
 
+    const picks=document.createElement("div");
+    picks.className="picks";
+    PEOPLE.forEach(pp=>{
+      const on=!!picksOf(f.id)[pp.k];
+      const b=document.createElement("button");
+      b.className="pick"; b.type="button"; b.textContent=pp.i;
+      b.setAttribute("aria-pressed",on);
+      b.setAttribute("aria-label",(on?"Remove ":"Add ")+pp.n+" for "+f.title);
+      b.title=pp.n+(on?" wants to watch this":"");
+      if(on){ b.style.background=pp.c; b.style.borderColor=pp.c; b.style.color="#12151d"; }
+      b.onclick=()=>togglePick(f.id,pp.k);
+      picks.appendChild(b);
+    });
+    const main=document.createElement("div");
+    main.className="film-main";
+    main.append(body,picks);
+
     const rate=document.createElement("span");
     rate.className="rating"; rate.textContent=f.rating.toFixed(1);
 
-    li.append(tick,body,rate);
+    li.append(tick,main,rate);
     ul.appendChild(li);
   });
 }
@@ -681,16 +774,37 @@ function renderList(){
 function renderNext(){
   const box=document.getElementById("stubs"); box.innerHTML="";
   const top=onShelf().filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no")
-                     .sort((a,b)=>b.rating-a.rating||a.year-b.year).slice(0,10);
-  if(!top.length){ box.innerHTML='<p class="empty">Nothing queued. Everything is watched or tagged out.</p>'; return; }
-  top.forEach((f,i)=>{
+    .sort((a,b)=>pickCount(b.id)-pickCount(a.id) || b.rating-a.rating || a.year-b.year)
+    .slice(0,10);
+  if(!top.length){ box.innerHTML='<p class="empty">Nothing queued. Everything is watched or tagged out.</p>'; }
+  else top.forEach((f,i)=>{
     const b=document.createElement("button"); b.className="stub";
     b.innerHTML='<span class="stub-no">'+String(i+1).padStart(2,"0")+'</span>'+
+      posterTile(f)+
       '<span class="stub-body"><span class="stub-title"></span>'+
-      '<span class="stub-meta">'+f.genre+' · '+f.year+' · '+f.cert+' · '+f.mins+' min · '+f.rating.toFixed(1)+'</span></span>';
+      '<span class="stub-meta">'+f.genre+' · '+f.year+' · '+f.cert+' · '+f.mins+' min · '+f.rating.toFixed(1)+
+      pickDots(f.id)+'</span></span>';
     b.querySelector(".stub-title").textContent=f.title;
     b.onclick=()=>openSheet(f.id);
     box.appendChild(b);
+  });
+
+  // Films already seen but tagged for another go
+  const again=onShelf().filter(f=>tagOf(f.id)==="again")
+    .sort((a,b)=>pickCount(b.id)-pickCount(a.id) || b.rating-a.rating);
+  const wrap=document.getElementById("againWrap");
+  const abox=document.getElementById("againStubs");
+  wrap.hidden = again.length===0;
+  abox.innerHTML="";
+  again.forEach(f=>{
+    const b=document.createElement("button"); b.className="stub";
+    b.innerHTML='<span class="stub-no">\u21bb</span>'+posterTile(f)+
+      '<span class="stub-body"><span class="stub-title"></span>'+
+      '<span class="stub-meta">'+f.genre+' · '+f.year+' · '+f.mins+' min'+
+      (isWatched(f.id)?' · seen '+fmt(state.watched[f.id]):'')+pickDots(f.id)+'</span></span>';
+    b.querySelector(".stub-title").textContent=f.title;
+    b.onclick=()=>openSheet(f.id);
+    abox.appendChild(b);
   });
 }
 
@@ -778,6 +892,14 @@ function openSheet(id){
           : "Not yet")+'</b></span>'+
     '</div>'+
     '<p class="blurb"></p>'+
+    '<div class="tag-row"><span class="tag-label">Who wants to watch it?</span><div class="tag-opts">'+
+      PEOPLE.map(pp=>{
+        const on=!!picksOf(id)[pp.k];
+        return '<button class="tagbtn" data-pick="'+pp.k+'" aria-pressed="'+on+'"'+
+               (on?' style="background:'+pp.c+';border-color:'+pp.c+';color:#12151d;font-weight:600"':'')+
+               '>'+pp.i+' &nbsp;'+pp.n+'</button>';
+      }).join("")+
+    '</div></div>'+
     '<div class="tag-row"><span class="tag-label">Tag it</span><div class="tag-opts">'+
       Object.keys(TAGS).map(k=>'<button class="tagbtn '+k+'" data-tag="'+k+'" aria-pressed="'+(t===k)+'">'+TAGS[k]+'</button>').join("")+
     '</div></div>'+
@@ -789,7 +911,8 @@ function openSheet(id){
     '</div>';
   s.querySelector("#sheetTitle").textContent=f.title;
   s.querySelector(".blurb").textContent=f.blurb;
-  s.querySelectorAll(".tagbtn").forEach(b=>b.onclick=()=>setTag(id,b.dataset.tag));
+  s.querySelectorAll(".tagbtn[data-tag]").forEach(b=>b.onclick=()=>setTag(id,b.dataset.tag));
+  s.querySelectorAll(".tagbtn[data-pick]").forEach(b=>b.onclick=()=>togglePick(id,b.dataset.pick));
   s.querySelector("#sheetTick").onclick=()=>toggleWatched(id);
   s.querySelector("#sheetKill").onclick=()=>removeFilm(id);
   s.querySelector("#sheetClose").onclick=closeSheet;
