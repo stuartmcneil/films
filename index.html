@@ -175,6 +175,59 @@
   .toast.show{display:block}
 
   footer{border-top:1px solid var(--rule);margin-top:26px;padding:16px 0 10px;color:var(--muted);font-size:12px}
+
+  /* ---- Desktop. Phone and tablet layouts above are untouched. ---- */
+  @media (min-width:900px){
+    body{font-size:16px}
+    .wrap{max-width:1060px;padding:0 24px}
+    h1{font-size:40px}
+    .tagline{font-size:14px}
+    .progress-label{font-size:12.5px}
+    .tabs{max-width:1060px;margin-left:auto;margin-right:auto;padding:0 24px}
+    .tab{font-size:13px;padding:16px 2px}
+    .tab .n{font-size:20px}
+    .section-head{font-size:14px}
+    .note{font-size:13.5px}
+    .chip{font-size:12.5px;padding:8px 15px}
+
+    /* the six cards fit across without scrolling */
+    .five{overflow:visible;padding:6px 0 18px;margin:0;gap:16px}
+    .poster.lg{width:158px;height:231px;flex:0 0 158px}
+    .poster.lg .poster-ini{font-size:40px}
+    .poster.lg .poster-yr{font-size:13px}
+    .five-card{flex:0 0 158px}
+    .five-title{font-size:14px}
+    .five-meta{font-size:12px}
+    .five-rank{width:26px;height:26px;font-size:14px}
+
+    /* two columns of films, since there is room for them */
+    ul.films{display:grid;grid-template-columns:1fr 1fr;column-gap:34px}
+    li.film{padding:14px 2px}
+    .film-title{font-size:15.5px}
+    .film-meta{font-size:12.5px}
+    .rating{font-size:17px}
+    .pick{width:29px;height:29px;font-size:13px}
+
+    .stubs{grid-template-columns:1fr 1fr;gap:12px}
+    .poster{flex:0 0 54px;width:54px;height:78px}
+    .poster-ini{font-size:19px}
+    .poster-yr{font-size:10px}
+    .stub-title{font-size:15px}
+    .stub-meta{font-size:12.5px}
+    .stub-no{font-size:30px;flex:0 0 38px}
+
+    /* panels become a centred dialog rather than a sheet slid up from the bottom */
+    .sheet-bg{align-items:center;padding:24px}
+    .sheet{max-width:760px;max-height:82vh;border-radius:14px;border:1px solid var(--rule);
+      border-top:3px solid var(--marquee);padding:26px 28px 30px}
+    .sheet h2{font-size:26px}
+    .blurb{font-size:15.5px}
+    .log .when{flex:0 0 76px}
+  }
+  @media (min-width:1360px){
+    .wrap,.tabs{max-width:1200px}
+    ul.films{column-gap:44px}
+  }
   :focus-visible{outline:2px solid var(--marquee);outline-offset:2px}
 </style>
 </head>
@@ -565,7 +618,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "4.3";
+const APP_VERSION = "4.4";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
