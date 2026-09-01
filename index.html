@@ -21,6 +21,10 @@
   .head-actions{display:flex;gap:8px;flex:0 0 auto}
   .iconbtn{flex:0 0 auto;background:var(--panel-2);border:1px solid var(--rule);color:var(--marquee);border-radius:8px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
   .iconbtn:hover,.iconbtn:focus{border-color:var(--marquee)}
+  .iconbtn.dad{width:auto;padding:0 13px;font-family:var(--display);font-size:13px;font-weight:600;
+    letter-spacing:.12em;text-decoration:none;color:var(--marquee);background:rgba(245,166,35,.12);
+    border-color:rgba(245,166,35,.45)}
+  .iconbtn.dad:hover,.iconbtn.dad:focus{background:var(--marquee);color:#17130a;border-color:var(--marquee)}
   #resetBtn{color:var(--warm)}
   #resetBtn:hover,#resetBtn:focus{border-color:var(--warm)}
   .iconbtn svg{width:20px;height:20px;display:block}
@@ -186,6 +190,8 @@
         <p class="tagline">Tag it, tick it, swap it out. The shelf stays at 200.</p>
       </div>
       <div class="head-actions">
+        <a class="iconbtn dad" id="dadLink" href="https://stuartmcneil.github.io/window/" target="_blank" rel="noopener"
+           title="Dad's site" aria-label="Dad's site">DAD</a>
         <button class="iconbtn" id="resetBtn" title="Refresh and clear stored data" aria-label="Refresh and clear stored data">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
@@ -275,10 +281,6 @@
     <p>Ratings and running times are approximate, from general knowledge rather than a live IMDb feed. Certificates are US ratings; PG-13 is roughly a UK 12A. Titles link to an IMDb search so they always land on the right page.</p>
     <p id="tmdbNote" hidden>This product uses the TMDB API but is not endorsed or certified by TMDB. Poster images are supplied by <a href="https://www.themoviedb.org" target="_blank" rel="noopener" style="color:var(--marquee)">The Movie Database</a> and remain the property of their respective owners.</p>
     <p id="saveNote">Ticks, tags and swaps save automatically. Use the save icon at the top to keep a copy as a file.</p>
-    <p style="text-align:center;margin:22px 0 18px">
-      <a class="btn primary" id="dadLink" href="https://stuartmcneil.github.io/window/" target="_blank" rel="noopener"
-         style="padding:13px 30px;font-size:14px;letter-spacing:.14em">DAD</a>
-    </p>
     <p><button class="mini" id="importV1">Bring across ticks from the first version</button>
       <span style="margin-left:10px" id="appVer"></span></p>
   </footer>
@@ -563,7 +565,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "4.2";
+const APP_VERSION = "4.3";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
