@@ -275,6 +275,10 @@
     <p>Ratings and running times are approximate, from general knowledge rather than a live IMDb feed. Certificates are US ratings; PG-13 is roughly a UK 12A. Titles link to an IMDb search so they always land on the right page.</p>
     <p id="tmdbNote" hidden>This product uses the TMDB API but is not endorsed or certified by TMDB. Poster images are supplied by <a href="https://www.themoviedb.org" target="_blank" rel="noopener" style="color:var(--marquee)">The Movie Database</a> and remain the property of their respective owners.</p>
     <p id="saveNote">Ticks, tags and swaps save automatically. Use the save icon at the top to keep a copy as a file.</p>
+    <p style="text-align:center;margin:22px 0 18px">
+      <a class="btn primary" id="dadLink" href="https://stuartmcneil.github.io/window/" target="_blank" rel="noopener"
+         style="padding:13px 30px;font-size:14px;letter-spacing:.14em">DAD</a>
+    </p>
     <p><button class="mini" id="importV1">Bring across ticks from the first version</button>
       <span style="margin-left:10px" id="appVer"></span></p>
   </footer>
@@ -559,7 +563,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "4.0";
+const APP_VERSION = "4.2";
 const KEY = "nate-film-catalogue-v2";
 
 let state = {
@@ -610,6 +614,7 @@ async function load(){
   if(!raw) await migrateFromV1(false);
   if(FS_OK){
     try{ const h=await idbGet("handle"); if(h) fileHandle=h; }catch(e){ /* no linked file */ }
+    try{ const dh=await idbGet("dir"); if(dh) dirHandle=dh; }catch(e){ /* no linked folder */ }
   }
   if(new URLSearchParams(location.search).get("fresh")){
     try{ history.replaceState({},"",location.pathname); }catch(e){}
@@ -1236,7 +1241,8 @@ document.querySelectorAll(".tab").forEach(btn=>{
    one file the user picks, so later saves overwrite it with no prompt.
    Chrome and Edge on desktop only; Safari and Firefox don't support it. */
 const FS_OK = (typeof window!=="undefined") && typeof window.showSaveFilePicker==="function";
-let fileHandle = null;
+const DIR_OK = (typeof window!=="undefined") && typeof window.showDirectoryPicker==="function";
+let fileHandle = null, dirHandle = null;
 let linkTimer = null;
 let suppressLink = false;
 
@@ -1258,6 +1264,24 @@ async function idbGet(k){
     const q=t.objectStore("handles").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
 }
 
+async function linkFolder(){
+  if(!DIR_OK){ toast("This browser can't link a folder. Use Chrome or Edge on a computer."); return; }
+  try{
+    dirHandle = await window.showDirectoryPicker({mode:"readwrite"});
+    await idbPut("dir", dirHandle);
+    fileHandle = null; await idbPut("handle", null);
+    state.autoSave = true;
+    await writeLinked(true);
+    openBackup();
+  }catch(e){ if(e && e.name!=="AbortError") toast("Couldn't link that folder."); }
+}
+async function targetHandle(create){
+  if(dirHandle){
+    try{ return await dirHandle.getFileHandle(GH_PATH,{create:!!create}); }
+    catch(e){ return null; }
+  }
+  return fileHandle;
+}
 async function linkFile(){
   if(!FS_OK){
     toast("This browser can't link to a file. Use Chrome or Edge on a computer.");
@@ -1275,39 +1299,46 @@ async function linkFile(){
   }catch(e){ if(e && e.name!=="AbortError") toast("Couldn't link that file."); }
 }
 async function ensurePermission(){
-  if(!fileHandle) return false;
+  const h = dirHandle || fileHandle;
+  if(!h) return false;
   try{
-    if(await fileHandle.queryPermission({mode:"readwrite"})==="granted") return true;
-    return (await fileHandle.requestPermission({mode:"readwrite"}))==="granted";
+    if(await h.queryPermission({mode:"readwrite"})==="granted") return true;
+    return (await h.requestPermission({mode:"readwrite"}))==="granted";
   }catch(e){ return false; }
 }
 async function writeLinked(announce){
-  if(!fileHandle) return false;
-  if(!await ensurePermission()){ if(announce) toast("Permission to write to that file was declined."); return false; }
+  if(!dirHandle && !fileHandle) return false;
+  if(!await ensurePermission()){ if(announce) toast("Permission to write there was declined."); return false; }
   try{
+    const target=await targetHandle(true);
+    if(!target){ if(announce) toast("Couldn't open the file in that folder."); return false; }
     const n=(state.saveNo||0)+1;
-    const w=await fileHandle.createWritable();
+    const w=await target.createWritable();
     await w.write(backupPayload(n));
     await w.close();
     commitSave(n);
-    if(announce) toast("Written to "+fileHandle.name+" as save"+String(n).padStart(3,"0")+".");
+    if(announce) toast("Written to "+(dirHandle?dirHandle.name+"\\"+GH_PATH:fileHandle.name)+
+                       " as save"+String(n).padStart(3,"0")+".");
     return true;
-  }catch(e){ if(announce) toast("Couldn't write to "+fileHandle.name+"."); return false; }
+  }catch(e){ if(announce) toast("Couldn't write there."); return false; }
 }
 async function readLinked(){
-  if(!fileHandle){ toast("No file linked yet."); return; }
-  if(!await ensurePermission()){ toast("Permission to read that file was declined."); return; }
+  if(!dirHandle && !fileHandle){ toast("Nothing linked yet."); return; }
+  if(!await ensurePermission()){ toast("Permission to read was declined."); return; }
   try{
-    const f=await fileHandle.getFile();
-    applyBackup(JSON.parse(await f.text()), fileHandle.name);
-  }catch(e){ toast("Couldn't read "+fileHandle.name+"."); }
+    const target=await targetHandle(false);
+    if(!target){ toast("No catalogue file in that folder yet — use Save now to create it."); return; }
+    const f=await target.getFile();
+    applyBackup(JSON.parse(await f.text()), target.name);
+  }catch(e){ toast("Couldn't read that file."); }
 }
 function unlinkFile(){
-  fileHandle=null; state.autoSave=false; idbPut("handle",null).catch(()=>{});
+  fileHandle=null; dirHandle=null; state.autoSave=false;
+  idbPut("handle",null).catch(()=>{}); idbPut("dir",null).catch(()=>{});
   save(); openBackup(); toast("File unlinked. Nothing was deleted.");
 }
 function scheduleLinked(){
-  if(suppressLink || !state.autoSave || !fileHandle) return;
+  if(suppressLink || !state.autoSave || (!fileHandle && !dirHandle)) return;
   clearTimeout(linkTimer);
   linkTimer=setTimeout(()=>writeLinked(false), 1500);
 }
@@ -1573,24 +1604,27 @@ function openBackup(){
     '<input type="range" id="bgDim" min="10" max="100" value="'+dim+'" style="width:100%">'+
     '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="bgSave">Apply</button>'+
     '<button class="btn" id="bgReset">Back to built-in art</button></div>';
-  const linked = fileHandle
-    ? '<p>Linked to <b>'+fileHandle.name+'</b>. '+(state.autoSave
-        ? 'Every change is written to it automatically.'
-        : 'Automatic writing is off — use Save now.')+'</p>'+
+  const linkedTo = dirHandle ? dirHandle.name+"\\"+GH_PATH : (fileHandle ? fileHandle.name : null);
+  const linked = linkedTo
+    ? '<p>Writing to <b>'+linkedTo+'</b>. '+(state.autoSave
+        ? 'Every change is saved there automatically.'
+        : 'Automatic saving is off — use Save now.')+'</p>'+
       '<div class="sheet-actions"><button class="btn primary" id="lkNow">Save now</button>'+
       '<button class="btn" id="lkAuto">'+(state.autoSave?"Turn off automatic":"Turn on automatic")+'</button>'+
       '<button class="btn" id="lkRead">Load from it</button>'+
       '<button class="btn danger" id="lkOff">Unlink</button></div>'
-    : (FS_OK
-        ? '<p>Pick a file inside your OneDrive folder and the app will write to it directly from then on — no downloads, no prompts. OneDrive syncs it like any other file.</p>'+
-          '<div class="sheet-actions"><button class="btn primary" id="lkNew">Link a file in OneDrive</button></div>'
-        : '<p>This browser can\'t write directly to a file. Chrome or Edge on a Windows or Mac computer can. On iPad or iPhone, use Save to a file below instead.</p>');
+    : (DIR_OK
+        ? '<p>Pick a folder once — <b>C:\\STUX\\CLAUDE\\Nate Movies</b>, for instance — and the app writes '+GH_PATH+
+          ' into it from then on, with no prompts. Browsers won\'t let a page choose the path itself, so the folder has to be picked by hand the first time.</p>'+
+          '<div class="sheet-actions"><button class="btn primary" id="lkDir">Link a folder</button>'+
+          '<button class="btn" id="lkNew">Link a single file instead</button></div>'
+        : '<p>This browser can\'t write straight to disk. Chrome or Edge on Windows or Mac can. On iPad, use Save to a file below.</p>');
   s.innerHTML='<h2 id="sheetTitle">Save &amp; restore</h2>'+
     '<div class="backup-block"><h3>GitHub sync — all devices</h3>'+cloudHtml+'</div>'+
     '<div class="backup-block"><h3>Posters</h3>'+postersHtml+'</div>'+
     '<div class="backup-block"><h3>Openverse photos</h3>'+ovHtml+'</div>'+
     '<div class="backup-block"><h3>Background</h3>'+bgHtml+'</div>'+
-    '<div class="backup-block"><h3>Linked file — this computer only</h3>'+linked+'</div>'+
+    '<div class="backup-block"><h3>Folder on this computer</h3>'+linked+'</div>'+
     '<div class="backup-block"><h3>Save a copy</h3>'+
     '<p>Writes everything — ticks, tags, swaps and both histories — to a small file you can keep, back up, or move to another device. '+
     'Each save gets the next number, so the highest number is always the newest.</p>'+
@@ -1654,6 +1688,7 @@ function openBackup(){
   on("#tmAll", fetchAllPosters);
   on("#tmOff", ()=>{ lsSet(TMDB_KEY_STORE,""); state.posters={}; save(); openBackup(); render();
                      toast("Posters off. Back to the generated tiles."); });
+  on("#lkDir", linkFolder);
   on("#lkNew", linkFile);
   on("#lkNow", ()=>writeLinked(true));
   on("#lkRead", readLinked);
