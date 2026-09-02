@@ -103,6 +103,10 @@
   .badge.new{background:rgba(78,201,164,.16);color:var(--seen)}
   .badge.again{background:rgba(180,140,235,.18);color:#c3a2f0}
   .film-main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .rowart{flex:0 0 auto;cursor:pointer;display:block;line-height:0}
+  .rowart .poster{width:40px;height:58px;flex:0 0 40px}
+  .rowart .poster-ini{font-size:14px}
+  .rowart .poster-yr{font-size:8px}
   .picks{display:flex;gap:6px;margin-top:8px}
   .pick{width:27px;height:27px;border-radius:50%;border:1.5px solid var(--rule);background:transparent;
     color:var(--muted);font-family:var(--display);font-size:12px;font-weight:600;cursor:pointer;
@@ -116,9 +120,11 @@
   .poster.lg{width:98px;height:143px;flex:0 0 98px;border-radius:5px}
   .poster.lg .poster-ini{font-size:28px}
   .poster.lg .poster-yr{font-size:11px}
-  .five{display:flex;gap:10px;overflow-x:auto;padding:4px 14px 14px;margin:0 -14px;scroll-snap-type:x mandatory}
+  .five{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);
+    gap:12px 10px;overflow-x:auto;padding:4px 14px 14px;margin:0 -14px;
+    scroll-snap-type:x mandatory;grid-auto-columns:98px}
   .five::-webkit-scrollbar{display:none}
-  .five-card{flex:0 0 98px;scroll-snap-align:start;background:none;border:0;padding:0;cursor:pointer;
+  .five-card{scroll-snap-align:start;background:none;border:0;padding:0;cursor:pointer;
     text-align:left;color:inherit;font:inherit;position:relative;display:flex;flex-direction:column}
   .five-rank{position:absolute;top:-4px;left:-4px;width:22px;height:22px;border-radius:50%;
     background:var(--marquee);color:#17130a;font-family:var(--display);font-size:12px;font-weight:700;
@@ -200,11 +206,11 @@
     select,.toggle{font-size:14.5px}
     select{padding:10px 13px}
 
-    .five{overflow:visible;padding:8px 0 22px;margin:0;gap:18px}
+    .five{overflow-x:auto;padding:8px 0 22px;margin:0;gap:18px 16px;grid-auto-columns:162px}
     .poster.lg{width:162px;height:237px;flex:0 0 162px}
     .poster.lg .poster-ini{font-size:42px}
     .poster.lg .poster-yr{font-size:13px}
-    .five-card{flex:0 0 162px}
+
     .five-title{font-size:15px;line-height:1.35;margin-top:9px}
     .five-meta{font-size:13px;margin-top:5px}
     .five-rank{width:27px;height:27px;font-size:14px}
@@ -309,8 +315,8 @@
   <!-- CATALOGUE -->
   <section id="panel-catalogue">
     <div id="fiveWrap">
-      <p class="section-head" style="margin:16px 0 4px">Next six</p>
-      <p class="note" id="fiveNote">The top of the queue, ready to pick from.</p>
+      <p class="section-head" style="margin:16px 0 4px">Top of the queue</p>
+      <p class="note" id="fiveNote">Ranked by how many of you want it, then by rating. Scroll sideways for more.</p>
       <div class="five" id="five"></div>
     </div>
     <div class="chips" id="peopleChips"></div>
@@ -662,7 +668,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.1";
+const APP_VERSION = "5.2";
 const KEY = "nate-film-catalogue-v2";
 const SVG = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -1103,7 +1109,7 @@ function renderFive(){
   const box=document.getElementById("five"); box.innerHTML="";
   const top=onShelf().filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no")
     .sort((a,b)=>pickCount(b.id)-pickCount(a.id) || b.rating-a.rating || a.year-b.year)
-    .slice(0,6);
+    .slice(0,12);
   document.getElementById("fiveWrap").hidden = top.length===0;
   top.forEach((f,i)=>{
     const b=document.createElement("button"); b.className="five-card"; b.type="button";
@@ -1184,6 +1190,11 @@ function renderList(){
       b.onclick=()=>togglePick(f.id,pp.k);
       picks.appendChild(b);
     });
+    const art=document.createElement("span");
+    art.className="rowart";
+    art.innerHTML=posterFor(f);
+    art.onclick=()=>openSheet(f.id);
+
     const main=document.createElement("div");
     main.className="film-main";
     main.append(body,picks);
@@ -1197,7 +1208,7 @@ function renderList(){
     kill.title="Remove and swap in a replacement";
     kill.onclick=()=>removeFilm(f.id);
 
-    li.append(tick,main,rate,kill);
+    li.append(tick,art,main,rate,kill);
     ul.appendChild(li);
   });
 }
