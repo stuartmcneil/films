@@ -83,8 +83,15 @@
   li.film{display:flex;align-items:flex-start;gap:11px;padding:12px 2px;border-bottom:1px solid var(--rule)}
   li.film.watched .film-title{text-decoration:line-through;color:var(--muted)}
   li.film.watched .rating{opacity:.4}
-  .tick{flex:0 0 auto;width:26px;height:26px;margin-top:1px;border-radius:5px;border:1.5px solid var(--rule);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:transparent;font-size:15px;line-height:1}
+  .tick{flex:0 0 auto;width:26px;height:26px;color:var(--muted);margin-top:1px;border-radius:5px;border:1.5px solid var(--rule);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:transparent;font-size:15px;line-height:1}
+  .tick svg{width:16px;height:16px;display:block}
   .tick[aria-pressed="true"]{background:var(--seen);border-color:var(--seen);color:#0d2a22}
+  .kill{flex:0 0 auto;width:26px;height:26px;margin-top:1px;border-radius:5px;border:1.5px solid transparent;
+    background:none;color:var(--muted);opacity:.6;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+  .kill svg{width:15px;height:15px;display:block}
+  .kill:hover,.kill:focus{opacity:1;color:var(--warm);border-color:rgba(226,114,91,.45)}
+  .ti{display:block;margin:0 auto 3px}
+  .ti svg{width:17px;height:17px;display:block;margin:0 auto}
   .film-body{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer}
   .film-title{font-weight:600;font-size:14.5px;line-height:1.3;display:block}
   .film-meta{font-size:12px;color:var(--muted);margin-top:3px}
@@ -178,55 +185,73 @@
 
   /* ---- Desktop. Phone and tablet layouts above are untouched. ---- */
   @media (min-width:900px){
-    body{font-size:16px}
-    .wrap{max-width:1060px;padding:0 24px}
-    h1{font-size:40px}
-    .tagline{font-size:14px}
-    .progress-label{font-size:12.5px}
-    .tabs{max-width:1060px;margin-left:auto;margin-right:auto;padding:0 24px}
-    .tab{font-size:13px;padding:16px 2px}
-    .tab .n{font-size:20px}
-    .section-head{font-size:14px}
-    .note{font-size:13.5px}
-    .chip{font-size:12.5px;padding:8px 15px}
+    body{font-size:17px;line-height:1.6}
+    .wrap{max-width:1100px;padding:0 28px}
+    h1{font-size:42px;letter-spacing:.045em}
+    .tagline{font-size:15px}
+    .progress-label{font-size:13px}
+    .tabs{max-width:1100px;margin-left:auto;margin-right:auto;padding:0 28px}
+    .tab{font-size:13.5px;padding:14px 4px;letter-spacing:.09em}
+    .tab .n{font-size:21px;margin-top:2px}
+    .ti svg{width:20px;height:20px}
+    .section-head{font-size:14.5px;letter-spacing:.14em}
+    .note{font-size:14.5px;line-height:1.55}
+    .chip{font-size:13px;padding:9px 17px;letter-spacing:.09em}
+    select,.toggle{font-size:14.5px}
+    select{padding:10px 13px}
 
-    /* the six cards fit across without scrolling */
-    .five{overflow:visible;padding:6px 0 18px;margin:0;gap:16px}
-    .poster.lg{width:158px;height:231px;flex:0 0 158px}
-    .poster.lg .poster-ini{font-size:40px}
+    .five{overflow:visible;padding:8px 0 22px;margin:0;gap:18px}
+    .poster.lg{width:162px;height:237px;flex:0 0 162px}
+    .poster.lg .poster-ini{font-size:42px}
     .poster.lg .poster-yr{font-size:13px}
-    .five-card{flex:0 0 158px}
-    .five-title{font-size:14px}
-    .five-meta{font-size:12px}
-    .five-rank{width:26px;height:26px;font-size:14px}
+    .five-card{flex:0 0 162px}
+    .five-title{font-size:15px;line-height:1.35;margin-top:9px}
+    .five-meta{font-size:13px;margin-top:5px}
+    .five-rank{width:27px;height:27px;font-size:14px}
 
-    /* two columns of films, since there is room for them */
-    ul.films{display:grid;grid-template-columns:1fr 1fr;column-gap:34px}
-    li.film{padding:14px 2px}
-    .film-title{font-size:15.5px}
-    .film-meta{font-size:12.5px}
-    .rating{font-size:17px}
-    .pick{width:29px;height:29px;font-size:13px}
+    /* the squashed-together problem: more air per row, bigger text */
+    ul.films{display:grid;grid-template-columns:1fr 1fr;column-gap:40px}
+    li.film{padding:17px 2px;gap:14px}
+    .film-title{font-size:17px;line-height:1.4}
+    .film-meta{font-size:13.5px;margin-top:6px;line-height:1.5}
+    .picks{margin-top:11px;gap:8px}
+    .pick{width:31px;height:31px;font-size:14px}
+    .tick{width:30px;height:30px}
+    .tick svg{width:18px;height:18px}
+    .kill{width:30px;height:30px}
+    .kill svg{width:17px;height:17px}
+    .rating{font-size:19px}
+    .badge{font-size:11.5px;padding:3px 8px}
 
-    .stubs{grid-template-columns:1fr 1fr;gap:12px}
-    .poster{flex:0 0 54px;width:54px;height:78px}
-    .poster-ini{font-size:19px}
+    .stubs{grid-template-columns:1fr 1fr;gap:14px}
+    .poster{flex:0 0 56px;width:56px;height:81px}
+    .poster-ini{font-size:20px}
     .poster-yr{font-size:10px}
-    .stub-title{font-size:15px}
-    .stub-meta{font-size:12.5px}
-    .stub-no{font-size:30px;flex:0 0 38px}
+    .stub{padding:13px 14px}
+    .stub-title{font-size:16px}
+    .stub-meta{font-size:13px}
+    .stub-no{font-size:32px;flex:0 0 40px}
 
-    /* panels become a centred dialog rather than a sheet slid up from the bottom */
+    .log li{padding:15px 2px}
+    .log .when{flex:0 0 84px;font-size:13px}
+    .log .what b{font-size:17px}
+    .log .sub{font-size:13.5px;margin-top:5px}
+    .mini{font-size:13px;padding:8px 13px}
+
     .sheet-bg{align-items:center;padding:24px}
-    .sheet{max-width:760px;max-height:82vh;border-radius:14px;border:1px solid var(--rule);
-      border-top:3px solid var(--marquee);padding:26px 28px 30px}
-    .sheet h2{font-size:26px}
-    .blurb{font-size:15.5px}
-    .log .when{flex:0 0 76px}
+    .sheet{max-width:780px;max-height:84vh;border-radius:14px;border:1px solid var(--rule);
+      border-top:3px solid var(--marquee);padding:28px 32px 34px}
+    .sheet h2{font-size:28px;line-height:1.15}
+    .blurb{font-size:16.5px;line-height:1.65}
+    .fact{font-size:13.5px;padding:7px 11px}
+    .btn{font-size:13.5px;padding:12px 18px}
+    .tagbtn{font-size:14px;padding:10px 16px}
+    .tag-label{font-size:12px;letter-spacing:.12em}
   }
   @media (min-width:1360px){
-    .wrap,.tabs{max-width:1200px}
-    ul.films{column-gap:44px}
+    .wrap,.tabs{max-width:1260px}
+    ul.films{column-gap:52px}
+    body{font-size:17.5px}
   }
   :focus-visible{outline:2px solid var(--marquee);outline-offset:2px}
 </style>
@@ -637,8 +662,17 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.0";
+const APP_VERSION = "5.1";
 const KEY = "nate-film-catalogue-v2";
+const SVG = {
+  eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="15" width="7" height="5" rx="1.5"/><rect x="14" y="15" width="7" height="5" rx="1.5"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5v15l13-7.5Z"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.7 6.3.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.3-.9Z"/></svg>',
+  user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>'
+};
+const TAB_ICONS = {catalogue:"grid", next:"play", want:"star", watched:"eye", person:"user", removed:"trash"};
 
 let state = {
   shelf: Array.from({length:SHELF_N},(_,i)=>i)
@@ -1120,7 +1154,7 @@ function renderList(){
     li.className="film"+(isWatched(f.id)?" watched":"");
 
     const tick=document.createElement("button");
-    tick.className="tick"; tick.type="button"; tick.textContent="✓";
+    tick.className="tick"; tick.type="button"; tick.innerHTML=SVG.eye;
     tick.setAttribute("aria-pressed", isWatched(f.id));
     tick.setAttribute("aria-label",(isWatched(f.id)?"Mark unwatched: ":"Mark watched: ")+f.title);
     tick.onclick=()=>toggleWatched(f.id);
@@ -1157,7 +1191,13 @@ function renderList(){
     const rate=document.createElement("span");
     rate.className="rating"; rate.textContent=f.rating.toFixed(1);
 
-    li.append(tick,main,rate);
+    const kill=document.createElement("button");
+    kill.className="kill"; kill.type="button"; kill.innerHTML=SVG.trash;
+    kill.setAttribute("aria-label","Remove "+f.title+" and swap in a replacement");
+    kill.title="Remove and swap in a replacement";
+    kill.onclick=()=>removeFilm(f.id);
+
+    li.append(tick,main,rate,kill);
     ul.appendChild(li);
   });
 }
@@ -1462,6 +1502,9 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet();});
 
 /* ---------- tabs ---------- */
 document.querySelectorAll(".tab").forEach(btn=>{
+  const ico=document.createElement("span");
+  ico.className="ti"; ico.innerHTML=SVG[TAB_ICONS[btn.dataset.tab]]||"";
+  btn.insertBefore(ico, btn.firstChild);
   btn.onclick=()=>{
     ui.tab=btn.dataset.tab;
     document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b===btn));
