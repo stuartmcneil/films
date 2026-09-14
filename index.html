@@ -711,7 +711,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.5";
+const APP_VERSION = "5.6";
 const KEY = "nate-film-catalogue-v2";
 const SVG = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -1469,6 +1469,12 @@ function renderRails(){
     return '<div class="'+cls+'"'+(fn?' data-act="'+fn+'"':'')+'><span>'+label+'</span><b>'+val+'</b></div>';
   };
 
+  const byGenre=GENRES.filter(g=>g!=="All").map(g=>({g,n:shelf.filter(f=>f.genre===g).length,
+                                                     left:unseen.filter(f=>f.genre===g).length}))
+                      .filter(x=>x.n).sort((a,b)=>b.n-a.n);
+  const decades={}; shelf.forEach(f=>{ const d=Math.floor(f.year/10)*10; decades[d]=(decades[d]||0)+1; });
+  const certs={};   shelf.forEach(f=>{ certs[f.cert]=(certs[f.cert]||0)+1; });
+
   // ---- left: the film in focus, then who, then the totals ----
   const pick = railFilm!==null && state.shelf.indexOf(railFilm)>-1 ? F(railFilm)
              : unseen.slice().sort(queueOrder)[0];
@@ -1501,17 +1507,19 @@ function renderRails(){
       '<div class="statline"><span>Hours watched</span><b>'+Math.round(mins/60)+'</b></div>'+
       '<div class="statline"><span>Votes cast</span><b>'+
         Object.keys(state.picks||{}).reduce((a,k)=>a+pickCount(k),0)+'</b></div>'+
+    '</div>'+
+    '<div class="box"><h4>By genre</h4>'+
+      byGenre.map(x=>row(x.g, x.left+" / "+x.n, ui.genre===x.g, "g:"+x.g)+
+        '<div class="bar"><span style="width:'+Math.round((1-x.left/x.n)*100)+'%;background:var(--seen)"></span></div>').join("")+
+      '<p class="note" style="margin:2px 0 0;font-size:11.5px">Left to see / total. Tap to filter.</p>'+
+    '</div>'+
+    '<div class="box"><h4>By decade</h4>'+
+      Object.keys(decades).sort().map(dd=>row(dd+"s", decades[dd], ui.decade===+dd, "d:"+dd)).join("")+
     '</div>';
   L.innerHTML=left;
 
-  // ---- right: filters you can click ----
-  const byGenre=GENRES.filter(g=>g!=="All").map(g=>({g,n:shelf.filter(f=>f.genre===g).length,
-                                                     left:unseen.filter(f=>f.genre===g).length}))
-                      .filter(x=>x.n).sort((a,b)=>b.n-a.n);
-  const decades={}; shelf.forEach(f=>{ const d=Math.floor(f.year/10)*10; decades[d]=(decades[d]||0)+1; });
-  const certs={};   shelf.forEach(f=>{ certs[f.cert]=(certs[f.cert]||0)+1; });
+  // ---- right: what's active, and the certificate breakdown ----
   const anyFilter = ui.genre!=="All" || ui.decade!==null || ui.cert!==null;
-
   R.innerHTML=
     (anyFilter?'<div class="box" style="border-color:rgba(245,166,35,.5)">'+
       '<h4>Filtering</h4>'+
@@ -1520,19 +1528,12 @@ function renderRails(){
         .filter(Boolean).join(" · ")+'</span><b>'+document.querySelectorAll("#list li.film").length+'</b></div>'+
       '<button class="mini" id="clearFilters" style="width:100%;margin-top:8px">Clear filters</button>'+
     '</div>':'')+
-    '<div class="box"><h4>By genre</h4>'+
-      byGenre.map(x=>row(x.g, x.left+" / "+x.n, ui.genre===x.g, "g:"+x.g)+
-        '<div class="bar"><span style="width:'+Math.round((1-x.left/x.n)*100)+'%;background:var(--seen)"></span></div>').join("")+
-      '<p class="note" style="margin:2px 0 0;font-size:11.5px">Left to see / total. Tap to filter.</p>'+
-    '</div>'+
-    '<div class="box"><h4>By decade</h4>'+
-      Object.keys(decades).sort().map(dd=>row(dd+"s", decades[dd], ui.decade===+dd, "d:"+dd)).join("")+
-    '</div>'+
     '<div class="box"><h4>Certificate</h4>'+
       Object.keys(certs).sort().map(c=>row(c, certs[c], ui.cert===c, "c:"+c)).join("")+
+      '<p class="note" style="margin:2px 0 0;font-size:11.5px">Tap to filter.</p>'+
     '</div>';
 
-  R.querySelectorAll("[data-act]").forEach(el=>{
+  document.querySelectorAll(".rail [data-act]").forEach(el=>{
     el.onclick=()=>{
       const [kind,val]=el.dataset.act.split(":");
       if(kind==="g") ui.genre = (ui.genre===val ? "All" : val);
