@@ -262,7 +262,7 @@
   .layout{display:block}
   .rail{display:none}
   @media (min-width:1200px){
-    .layout{display:grid;grid-template-columns:232px minmax(0,1fr) 288px;gap:30px;align-items:start}
+    .layout{display:grid;grid-template-columns:242px minmax(0,1fr);gap:34px;align-items:start}
     .rail{display:block;position:sticky;top:74px;max-height:calc(100vh - 96px);overflow-y:auto;
       font-size:13.5px;line-height:1.5}
     .rail::-webkit-scrollbar{width:6px}
@@ -287,9 +287,9 @@
     /* the list is narrower with rails either side, so one column reads better */
     ul.films{grid-template-columns:1fr}
   }
-  @media (min-width:1560px){
-    .layout{grid-template-columns:248px minmax(0,1fr) 312px;gap:36px}
-    ul.films{grid-template-columns:1fr 1fr;column-gap:36px}
+  @media (min-width:1440px){
+    .layout{grid-template-columns:262px minmax(0,1fr);gap:40px}
+    ul.films{grid-template-columns:1fr 1fr;column-gap:40px}
   }
   :focus-visible{outline:2px solid var(--marquee);outline-offset:2px}
 </style>
@@ -420,7 +420,6 @@
   </section>
 
   </div>
-<aside class="rail" id="railRight"></aside>
 </div>
 
   <footer>
@@ -711,7 +710,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.6";
+const APP_VERSION = "5.7";
 const KEY = "nate-film-catalogue-v2";
 const SVG = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -1457,8 +1456,8 @@ function applyBackdrop(){
 }
 let railFilm=null;
 function renderRails(){
-  const L=document.getElementById("railLeft"), R=document.getElementById("railRight");
-  if(!L||!R) return;
+  const L=document.getElementById("railLeft");
+  if(!L) return;
   const shelf=onShelf();
   const unseen=shelf.filter(f=>!isWatched(f.id) && !seenOf(f.id).nate);
   const mins=Object.keys(state.watched).reduce((a,id)=>a+F(id).mins,0);
@@ -1515,23 +1514,21 @@ function renderRails(){
     '</div>'+
     '<div class="box"><h4>By decade</h4>'+
       Object.keys(decades).sort().map(dd=>row(dd+"s", decades[dd], ui.decade===+dd, "d:"+dd)).join("")+
+    '</div>'+
+    '<div class="box"><h4>Certificate</h4>'+
+      Object.keys(certs).sort().map(c=>row(c, certs[c], ui.cert===c, "c:"+c)).join("")+
     '</div>';
-  L.innerHTML=left;
-
-  // ---- right: what's active, and the certificate breakdown ----
   const anyFilter = ui.genre!=="All" || ui.decade!==null || ui.cert!==null;
-  R.innerHTML=
-    (anyFilter?'<div class="box" style="border-color:rgba(245,166,35,.5)">'+
+  if(anyFilter){
+    left = '<div class="box" style="border-color:rgba(245,166,35,.5)">'+
       '<h4>Filtering</h4>'+
       '<div class="statline"><span>'+
         [ui.genre!=="All"?ui.genre:null, ui.decade!==null?ui.decade+"s":null, ui.cert!==null?ui.cert:null]
         .filter(Boolean).join(" · ")+'</span><b>'+document.querySelectorAll("#list li.film").length+'</b></div>'+
       '<button class="mini" id="clearFilters" style="width:100%;margin-top:8px">Clear filters</button>'+
-    '</div>':'')+
-    '<div class="box"><h4>Certificate</h4>'+
-      Object.keys(certs).sort().map(c=>row(c, certs[c], ui.cert===c, "c:"+c)).join("")+
-      '<p class="note" style="margin:2px 0 0;font-size:11.5px">Tap to filter.</p>'+
-    '</div>';
+    '</div>' + left;
+  }
+  L.innerHTML=left;
 
   document.querySelectorAll(".rail [data-act]").forEach(el=>{
     el.onclick=()=>{
@@ -1546,7 +1543,7 @@ function renderRails(){
       render();
     };
   });
-  const cf=R.querySelector("#clearFilters");
+  const cf=document.getElementById("clearFilters");
   if(cf) cf.onclick=()=>{ ui.genre="All"; ui.decade=null; ui.cert=null; render(); };
 }
 function render(){
