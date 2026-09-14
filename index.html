@@ -306,6 +306,7 @@
   <button class="tab" role="tab" data-tab="next" aria-selected="false"><span class="n" id="tabNext">10</span>Up next</button>
   <button class="tab" role="tab" data-tab="want" aria-selected="false"><span class="n" id="tabWant">0</span>Want to watch</button>
   <button class="tab" role="tab" data-tab="watched" aria-selected="false"><span class="n" id="tabWatched">0</span>Watched</button>
+  <button class="tab" role="tab" data-tab="again" aria-selected="false"><span class="n" id="tabAgain">0</span>Watch again</button>
   <button class="tab" role="tab" data-tab="person" aria-selected="false"><span class="n" id="tabPerson">0</span>By person</button>
   <button class="tab" role="tab" data-tab="removed" aria-selected="false"><span class="n" id="tabRemoved">0</span>Removed</button>
 </div>
@@ -323,6 +324,7 @@
     <div class="chips" id="chips"></div>
     <div class="row-controls">
       <select id="sort" aria-label="Sort films">
+        <option value="queue">Sort: queue order — votes, then reviews</option>
         <option value="acclaim">Sort: most acclaimed</option>
         <option value="year">Sort: newest first</option>
         <option value="yearOld">Sort: oldest first</option>
@@ -332,7 +334,7 @@
         <option value="wanted">Sort: most wanted</option>
         <option value="tagged">Sort: tagged first</option>
       </select>
-      <label class="toggle"><input type="checkbox" id="hideWatched" checked> Show watched too</label>
+      <label class="toggle"><input type="checkbox" id="hideWatched" checked> Show seen films too</label>
     </div>
     <button class="bulk" id="bulk" hidden></button>
     <ul class="films" id="list"><li class="empty">If this is all you can see, the page's script hasn't run. Cloud storage previews (OneDrive, Google Drive, SharePoint) block scripts in files they display. Download the file and open it from your device instead.</li></ul>
@@ -343,11 +345,6 @@
     <p class="section-head">Ten best still unwatched</p>
     <p class="note">Ranked by how many of you want it, then by rating. Anything tagged "not interested" is left out.</p>
     <div class="stubs" id="stubs"></div>
-    <div id="againWrap" hidden>
-      <p class="section-head" style="margin-top:22px">Worth another look</p>
-      <p class="note">Films tagged "watch again".</p>
-      <div class="stubs" id="againStubs"></div>
-    </div>
   </section>
 
   <!-- WANT TO WATCH -->
@@ -356,6 +353,13 @@
     <p class="note">Everything any of you has put a name against. Most wanted first.</p>
     <div class="chips" id="wantChips"></div>
     <ul class="films" id="wantList"></ul>
+  </section>
+
+  <!-- WATCH AGAIN -->
+  <section id="panel-again" hidden>
+    <p class="section-head">Seen it, want it again</p>
+    <p class="note">Films you've watched and tagged "watch again". Same order as the queue: votes first, then reviews.</p>
+    <div class="stubs" id="againStubs"></div>
   </section>
 
   <!-- BY PERSON -->
@@ -668,7 +672,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.2";
+const APP_VERSION = "5.3";
 const KEY = "nate-film-catalogue-v2";
 const SVG = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -676,6 +680,7 @@ const SVG = {
   grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="15" width="7" height="5" rx="1.5"/><rect x="14" y="15" width="7" height="5" rx="1.5"/></svg>',
   play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5v15l13-7.5Z"/></svg>',
   star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.7 6.3.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.3-.9Z"/></svg>',
+  again:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.3-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.4L3 16"/><path d="M3 21v-5h5"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>'
 };
 const TAB_ICONS = {catalogue:"grid", next:"play", want:"star", watched:"eye", person:"user", removed:"trash"};
@@ -694,7 +699,7 @@ let state = {
   saveNo: 0,     // increments every time a backup file is written
   savedAt: null  // when that last backup was written
 };
-let ui = {tab:"catalogue", genre:"All", person:"any", want:"any", seenWho:"nate", sort:"acclaim", hide:true};
+let ui = {tab:"catalogue", genre:"All", person:"any", want:"any", seenWho:"nate", sort:"queue", hide:true};
 
 /* ---------- storage ---------- */
 /* Two places to save. Inside Claude there's window.storage; in an ordinary
@@ -995,6 +1000,7 @@ function pickReplacement(genre){
 function sortFilms(a){
   const arr = a.slice();
   switch(ui.sort){
+    case "queue":   return a.sort(queueOrder);
     case "year":    return arr.sort((x,y)=>y.year-x.year||y.rating-x.rating);
     case "yearOld": return arr.sort((x,y)=>x.year-y.year||y.rating-x.rating);
     case "title":   return arr.sort((x,y)=>x.title.localeCompare(y.title));
@@ -1107,9 +1113,8 @@ function renderPeopleChips(){
 }
 function renderFive(){
   const box=document.getElementById("five"); box.innerHTML="";
-  const top=onShelf().filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no")
-    .sort((a,b)=>pickCount(b.id)-pickCount(a.id) || b.rating-a.rating || a.year-b.year)
-    .slice(0,12);
+  const top=onShelf().filter(f=>!isWatched(f.id) && !seenOf(f.id).nate && tagOf(f.id)!=="no")
+    .sort(queueOrder).slice(0,12);
   document.getElementById("fiveWrap").hidden = top.length===0;
   top.forEach((f,i)=>{
     const b=document.createElement("button"); b.className="five-card"; b.type="button";
@@ -1150,7 +1155,8 @@ function renderList(){
   if(ui.genre!=="All") films=films.filter(f=>f.genre===ui.genre);
   if(ui.person==="all") films=films.filter(f=>pickCount(f.id)===PEOPLE.length);
   else if(ui.person!=="any") films=films.filter(f=>picksOf(f.id)[ui.person]);
-  if(ui.hide) films=films.filter(f=>!isWatched(f.id));
+  // Off the front page once Nate has seen it (or the household has ticked it)
+  if(ui.hide) films=films.filter(f=>!isWatched(f.id) && !seenOf(f.id).nate);
   films = sortFilms(films);
 
   if(!films.length){ ul.innerHTML='<li class="empty">Nothing here. Try another genre, or untick "hide watched".</li>'; return; }
@@ -1215,9 +1221,8 @@ function renderList(){
 
 function renderNext(){
   const box=document.getElementById("stubs"); box.innerHTML="";
-  const top=onShelf().filter(f=>!isWatched(f.id) && tagOf(f.id)!=="no")
-    .sort((a,b)=>pickCount(b.id)-pickCount(a.id) || b.rating-a.rating || a.year-b.year)
-    .slice(0,10);
+  const top=onShelf().filter(f=>!isWatched(f.id) && !seenOf(f.id).nate && tagOf(f.id)!=="no")
+    .sort(queueOrder).slice(0,10);
   if(!top.length){ box.innerHTML='<p class="empty">Nothing queued. Everything is watched or tagged out.</p>'; }
   else top.forEach((f,i)=>{
     const b=document.createElement("button"); b.className="stub";
@@ -1231,19 +1236,22 @@ function renderNext(){
     box.appendChild(b);
   });
 
-  // Films already seen but tagged for another go
-  const again=onShelf().filter(f=>tagOf(f.id)==="again")
-    .sort((a,b)=>pickCount(b.id)-pickCount(a.id) || b.rating-a.rating);
-  const wrap=document.getElementById("againWrap");
+}
+function renderAgain(){
+  const again=onShelf().filter(f=>tagOf(f.id)==="again").sort(queueOrder);
   const abox=document.getElementById("againStubs");
-  wrap.hidden = again.length===0;
+  document.getElementById("tabAgain").textContent=again.length;
   abox.innerHTML="";
+  if(!again.length){
+    abox.innerHTML='<p class="empty">Nothing here yet. Open a film you\'ve seen and tag it "watch again".</p>';
+    return;
+  }
   again.forEach(f=>{
     const b=document.createElement("button"); b.className="stub";
     b.innerHTML='<span class="stub-no">\u21bb</span>'+posterFor(f)+
       '<span class="stub-body"><span class="stub-title"></span>'+
       '<span class="stub-meta">'+f.genre+' · '+f.year+' · '+f.mins+' min'+
-      (isWatched(f.id)?' · seen '+fmt(state.watched[f.id]):'')+pickDots(f.id)+'</span></span>';
+      (isWatched(f.id)?' · seen '+fmt(state.watched[f.id]):'')+ratBadge(f.id)+pickDots(f.id)+'</span></span>';
     b.querySelector(".stub-title").textContent=f.title;
     b.onclick=()=>openSheet(f.id);
     abox.appendChild(b);
@@ -1270,7 +1278,7 @@ function renderWant(){
   let films=onShelf().filter(f=>pickCount(f.id)>0);
   if(ui.want==="all") films=films.filter(f=>pickCount(f.id)===PEOPLE.length);
   else if(ui.want!=="any") films=films.filter(f=>picksOf(f.id)[ui.want]);
-  films.sort((a,b)=>pickCount(b.id)-pickCount(a.id)||b.rating-a.rating);
+  films.sort(queueOrder);
   if(!films.length){ ul.innerHTML='<li class="empty">Nobody has put a name against anything yet. Use the S, N and C buttons on any film.</li>'; return; }
   films.forEach(f=>{
     const li=document.createElement("li");
@@ -1316,6 +1324,17 @@ function renderPerson(){
     li.appendChild(btn); ul.appendChild(li);
   });
 }
+function extScore(id){
+  const r=ratOf(id);
+  if(r){
+    if(r.rt){ const v=parseInt(String(r.rt).replace("%","")); if(!isNaN(v)) return v; }
+    if(r.mc){ const v=parseInt(String(r.mc).split("/")[0]); if(!isNaN(v)) return v; }
+    if(r.imdb){ const v=parseFloat(r.imdb); if(!isNaN(v)) return v*10; }
+  }
+  return F(id).rating*10;          // fall back to the stored IMDb figure
+}
+// The queue order: most votes first, then the best reviewed of those.
+const queueOrder = (a,b) => pickCount(b.id)-pickCount(a.id) || extScore(b.id)-extScore(a.id) || a.year-b.year;
 function ratBadge(id){
   const r=ratOf(id);
   if(!r) return "";
@@ -1421,7 +1440,7 @@ function applyBackdrop(){
 }
 function render(){
   applyBackdrop();
-  renderWant(); renderPerson();
+  renderWant(); renderPerson(); renderAgain();
   document.getElementById("tmdbNote").hidden = !tmdbKey();
   renderCounts(); renderChips(); renderList(); renderNext(); renderWatched(); renderRemoved();
 }
@@ -1519,7 +1538,7 @@ document.querySelectorAll(".tab").forEach(btn=>{
   btn.onclick=()=>{
     ui.tab=btn.dataset.tab;
     document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b===btn));
-    ["catalogue","next","want","watched","person","removed"].forEach(p=>{
+    ["catalogue","next","want","watched","again","person","removed"].forEach(p=>{
       document.getElementById("panel-"+p).hidden = (p!==ui.tab);
     });
     window.scrollTo({top:0,behavior:"smooth"});
