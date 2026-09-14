@@ -259,6 +259,34 @@
     ul.films{column-gap:52px}
     body{font-size:17.5px}
   }
+  .layout{display:block}
+  .rail{display:none}
+  @media (min-width:1200px){
+    .layout{display:grid;grid-template-columns:232px minmax(0,1fr) 288px;gap:30px;align-items:start}
+    .rail{display:block;position:sticky;top:74px;max-height:calc(100vh - 96px);overflow-y:auto;
+      font-size:13.5px;line-height:1.5}
+    .rail::-webkit-scrollbar{width:6px}
+    .rail::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px}
+    .rail h4{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:11.5px;
+      color:var(--marquee);margin:0 0 9px;font-weight:600}
+    .rail .box{background:rgba(22,27,38,.72);border:1px solid var(--rule);border-radius:10px;
+      padding:14px 15px;margin-bottom:14px;backdrop-filter:blur(5px)}
+    .statline{display:flex;justify-content:space-between;gap:10px;padding:4px 0;color:var(--muted)}
+    .statline b{color:var(--paper);font-weight:600}
+    .bar{height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin:6px 0 11px}
+    .bar span{display:block;height:100%}
+    .railart{width:100%;border-radius:8px;overflow:hidden;margin-bottom:11px;display:block}
+    .railart .poster{width:100%;height:180px;flex:none;border-radius:8px}
+    .railart .poster-ini{font-size:44px}
+    .railart .poster-yr{font-size:13px}
+    .rail .rt{font-family:var(--display);font-size:19px;font-weight:600}
+    /* the list is narrower with rails either side, so one column reads better */
+    ul.films{grid-template-columns:1fr}
+  }
+  @media (min-width:1560px){
+    .layout{grid-template-columns:248px minmax(0,1fr) 312px;gap:36px}
+    ul.films{grid-template-columns:1fr 1fr;column-gap:36px}
+  }
   :focus-visible{outline:2px solid var(--marquee);outline-offset:2px}
 </style>
 </head>
@@ -312,6 +340,9 @@
 </div>
 
 <main class="wrap">
+<div class="layout">
+<aside class="rail" id="railLeft"></aside>
+<div class="col">
 
   <!-- CATALOGUE -->
   <section id="panel-catalogue">
@@ -367,22 +398,26 @@
     <p class="section-head" id="personHead">Films Nate has watched</p>
     <p class="note">Tick who actually sat down for it in each film's panel.</p>
     <div class="chips" id="personChips"></div>
-    <ul class="log" id="personLog"></ul>
+    <ul class="films" id="personLog"></ul>
   </section>
 
   <!-- WATCHED -->
   <section id="panel-watched" hidden>
     <p class="section-head">Watched history</p>
     <p class="note" id="watchedNote"></p>
-    <ul class="log" id="watchedLog"></ul>
+    <ul class="films" id="watchedLog"></ul>
   </section>
 
   <!-- REMOVED -->
   <section id="panel-removed" hidden>
     <p class="section-head">Removed, and what replaced them</p>
     <p class="note" id="removedNote"></p>
-    <ul class="log" id="removedLog"></ul>
+    <ul class="films" id="removedLog"></ul>
   </section>
+
+  </div>
+<aside class="rail" id="railRight"></aside>
+</div>
 
   <footer>
     <p>Ratings and running times are approximate, from general knowledge rather than a live IMDb feed. Certificates are US ratings; PG-13 is roughly a UK 12A. Titles link to an IMDb search so they always land on the right page.</p>
@@ -672,7 +707,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.3";
+const APP_VERSION = "5.4";
 const KEY = "nate-film-catalogue-v2";
 const SVG = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -1143,6 +1178,77 @@ function renderChips(){
   });
 }
 
+function filmRow(f, o){
+  o=o||{};
+  const li=document.createElement("li");
+  li.className="film"+(isWatched(f.id)?" watched":"");
+
+  if(o.noTick!==true){
+    const tick=document.createElement("button");
+    tick.className="tick"; tick.type="button"; tick.innerHTML=SVG.eye;
+    tick.setAttribute("aria-pressed", isWatched(f.id));
+    tick.setAttribute("aria-label",(isWatched(f.id)?"Mark unwatched: ":"Mark watched: ")+f.title);
+    tick.onclick=()=>toggleWatched(f.id);
+    li.appendChild(tick);
+  }
+
+  const art=document.createElement("span");
+  art.className="rowart"; art.innerHTML=posterFor(f);
+  art.onclick=()=>openSheet(f.id);
+  li.appendChild(art);
+
+  const main=document.createElement("div");
+  main.className="film-main";
+  const body=document.createElement("button");
+  body.className="film-body"; body.type="button";
+  const t=tagOf(f.id), isNew=f.id>=SHELF_N && f.id<EXTRA_START;
+  body.innerHTML='<span class="film-title">'+
+    (t?'<span class="badge '+t+'">'+TAGS[t]+'</span>':'')+
+    (isNew?'<span class="badge new">Swapped in</span>':'')+
+    '<span class="tt"></span></span>'+
+    '<span class="film-meta">'+f.genre+' · '+f.year+' · '+f.cert+' · '+f.mins+' min'+
+    (o.date&&state.watched[f.id]?' · seen '+fmt(state.watched[f.id]):'')+
+    ratBadge(f.id)+pickDots(f.id)+'</span>';
+  body.querySelector(".tt").textContent=f.title;
+  body.onclick=()=>openSheet(f.id);
+  main.appendChild(body);
+
+  if(o.noPicks!==true){
+    const picks=document.createElement("div");
+    picks.className="picks";
+    PEOPLE.forEach(pp=>{
+      const on=!!picksOf(f.id)[pp.k];
+      const b=document.createElement("button");
+      b.className="pick"; b.type="button"; b.textContent=pp.i;
+      b.setAttribute("aria-pressed",on);
+      b.setAttribute("aria-label",(on?"Remove ":"Add ")+pp.n+" for "+f.title);
+      b.title=pp.n+(on?" wants to watch this":"");
+      if(on){ b.style.background=pp.c; b.style.borderColor=pp.c; b.style.color="#12151d"; }
+      b.onclick=()=>togglePick(f.id,pp.k);
+      picks.appendChild(b);
+    });
+    main.appendChild(picks);
+  }
+  li.appendChild(main);
+
+  const rate=document.createElement("span");
+  rate.className="rating"; rate.textContent=f.rating.toFixed(1);
+  li.appendChild(rate);
+
+  if(o.action){
+    const b=document.createElement("button");
+    b.className="mini"; b.textContent=o.action.label; b.onclick=o.action.fn;
+    li.appendChild(b);
+  }else if(o.noKill!==true){
+    const kill=document.createElement("button");
+    kill.className="kill"; kill.type="button"; kill.innerHTML=SVG.trash;
+    kill.setAttribute("aria-label","Remove "+f.title+" and swap in a replacement");
+    kill.title="Remove and swap in a replacement";
+    kill.onclick=()=>removeFilm(f.id);
+    li.appendChild(kill);
+  }
+  return li;
+}
 function renderList(){
   const ul=document.getElementById("list"); ul.innerHTML="";
   const bulk=document.getElementById("bulk");
@@ -1161,62 +1267,7 @@ function renderList(){
 
   if(!films.length){ ul.innerHTML='<li class="empty">Nothing here. Try another genre, or untick "hide watched".</li>'; return; }
 
-  films.forEach(f=>{
-    const li=document.createElement("li");
-    li.className="film"+(isWatched(f.id)?" watched":"");
-
-    const tick=document.createElement("button");
-    tick.className="tick"; tick.type="button"; tick.innerHTML=SVG.eye;
-    tick.setAttribute("aria-pressed", isWatched(f.id));
-    tick.setAttribute("aria-label",(isWatched(f.id)?"Mark unwatched: ":"Mark watched: ")+f.title);
-    tick.onclick=()=>toggleWatched(f.id);
-
-    const body=document.createElement("button");
-    body.className="film-body"; body.type="button";
-    const t=tagOf(f.id);
-    const isNew = f.id>=SHELF_N && f.id<EXTRA_START;
-    body.innerHTML='<span class="film-title">'+
-      (t?'<span class="badge '+t+'">'+TAGS[t]+'</span>':'')+
-      (isNew?'<span class="badge new">Swapped in</span>':'')+
-      '<span class="tt"></span></span>'+
-      '<span class="film-meta">'+f.genre+' · '+f.year+' · '+f.cert+' · '+f.mins+' min'+ratBadge(f.id)+'</span>';
-    body.querySelector(".tt").textContent=f.title;
-    body.onclick=()=>openSheet(f.id);
-
-    const picks=document.createElement("div");
-    picks.className="picks";
-    PEOPLE.forEach(pp=>{
-      const on=!!picksOf(f.id)[pp.k];
-      const b=document.createElement("button");
-      b.className="pick"; b.type="button"; b.textContent=pp.i;
-      b.setAttribute("aria-pressed",on);
-      b.setAttribute("aria-label",(on?"Remove ":"Add ")+pp.n+" for "+f.title);
-      b.title=pp.n+(on?" wants to watch this":"");
-      if(on){ b.style.background=pp.c; b.style.borderColor=pp.c; b.style.color="#12151d"; }
-      b.onclick=()=>togglePick(f.id,pp.k);
-      picks.appendChild(b);
-    });
-    const art=document.createElement("span");
-    art.className="rowart";
-    art.innerHTML=posterFor(f);
-    art.onclick=()=>openSheet(f.id);
-
-    const main=document.createElement("div");
-    main.className="film-main";
-    main.append(body,picks);
-
-    const rate=document.createElement("span");
-    rate.className="rating"; rate.textContent=f.rating.toFixed(1);
-
-    const kill=document.createElement("button");
-    kill.className="kill"; kill.type="button"; kill.innerHTML=SVG.trash;
-    kill.setAttribute("aria-label","Remove "+f.title+" and swap in a replacement");
-    kill.title="Remove and swap in a replacement";
-    kill.onclick=()=>removeFilm(f.id);
-
-    li.append(tick,art,main,rate,kill);
-    ul.appendChild(li);
-  });
+  films.forEach(f=>ul.appendChild(filmRow(f)));
 }
 
 function renderNext(){
@@ -1280,18 +1331,7 @@ function renderWant(){
   else if(ui.want!=="any") films=films.filter(f=>picksOf(f.id)[ui.want]);
   films.sort(queueOrder);
   if(!films.length){ ul.innerHTML='<li class="empty">Nobody has put a name against anything yet. Use the S, N and C buttons on any film.</li>'; return; }
-  films.forEach(f=>{
-    const li=document.createElement("li");
-    li.className="film"+(isWatched(f.id)?" watched":"");
-    const b=document.createElement("button");
-    b.className="film-body"; b.type="button";
-    b.innerHTML='<span class="film-title"><span class="tt"></span></span>'+
-      '<span class="film-meta">'+f.genre+' · '+f.year+' · '+f.mins+' min · '+f.rating.toFixed(1)+
-      ratBadge(f.id)+pickDots(f.id)+'</span>';
-    b.querySelector(".tt").textContent=f.title;
-    b.onclick=()=>openSheet(f.id);
-    li.appendChild(b); ul.appendChild(li);
-  });
+  films.forEach(f=>ul.appendChild(filmRow(f)));
 }
 function renderPerson(){
   const who=ui.seenWho||"nate";
@@ -1313,16 +1353,7 @@ function renderPerson(){
       if(!da&&!db) return F(a).title.localeCompare(F(b).title);
       if(!da) return 1; if(!db) return -1; return new Date(db)-new Date(da); });
   if(!ids.length){ ul.innerHTML='<li class="empty">Nothing marked yet. Open a film and use "Watched by".</li>'; return; }
-  ids.forEach(id=>{
-    const f=F(id), li=document.createElement("li");
-    li.innerHTML='<span class="when">'+fmt(state.watched[id])+'</span>'+
-      '<span class="what"><b></b><span class="sub">'+f.genre+' · '+f.year+' · '+f.mins+' min'+ratBadge(id)+'</span></span>';
-    li.querySelector("b").textContent=f.title;
-    const btn=document.createElement("button");
-    btn.className="mini"; btn.textContent="Open";
-    btn.onclick=()=>openSheet(id);
-    li.appendChild(btn); ul.appendChild(li);
-  });
+  ids.forEach(id=>ul.appendChild(filmRow(F(id),{date:true})));
 }
 function extScore(id){
   const r=ratOf(id);
@@ -1361,20 +1392,8 @@ function renderWatched(){
   const mins=entries.reduce((s,id)=>s+F(id).mins,0);
   const h=Math.floor(mins/60);
   note.textContent=entries.length+" films, about "+h+" hours "+(mins%60)+" minutes of family film nights.";
-  entries.forEach(id=>{
-    const f=F(id);
-    const li=document.createElement("li");
-    const t=tagOf(id);
-    li.innerHTML='<span class="when">'+fmt(state.watched[id])+'</span>'+
-      '<span class="what"><b></b><span class="sub">'+f.genre+' · '+f.year+' · '+f.mins+' min · '+f.rating.toFixed(1)+
-      (t?' · <em>'+TAGS[t]+'</em>':'')+'</span></span>';
-    li.querySelector("b").textContent=f.title;
-    const btn=document.createElement("button");
-    btn.className="mini"; btn.textContent="Untick";
-    btn.onclick=()=>toggleWatched(id);
-    li.appendChild(btn);
-    ul.appendChild(li);
-  });
+  entries.forEach(id=>ul.appendChild(filmRow(F(id),{date:true,
+    action:{label:"Untick", fn:()=>toggleWatched(id)}})));
 }
 
 function renderRemoved(){
@@ -1388,20 +1407,12 @@ function renderRemoved(){
     return;
   }
   state.log.forEach(entry=>{
-    const f=F(entry.id);
-    const li=document.createElement("li");
-    const swapTxt = (entry.swapIn!==null && entry.swapIn!==undefined)
-      ? '<br><span class="swap">↳ replaced by '+F(entry.swapIn).title+'</span>' : '';
-    li.innerHTML='<span class="when">'+fmt(entry.date)+'</span>'+
-      '<span class="what"><b></b><span class="sub">'+f.genre+' · '+f.year+
-      (entry.tag?' · tagged "'+TAGS[entry.tag]+'"':'')+
-      (entry.from==="v1" ? ' · carried over from the first version' : ' · removed '+fmtLong(entry.date))+
-      swapTxt+'</span></span>';
-    li.querySelector("b").textContent=f.title;
-    const btn=document.createElement("button");
-    btn.className="mini"; btn.textContent="Put back";
-    btn.onclick=()=>restore(entry);
-    li.appendChild(btn);
+    const li=filmRow(F(entry.id),{noTick:true,noPicks:true,
+      action:{label:"Put back", fn:()=>restore(entry)}});
+    const meta=li.querySelector(".film-meta");
+    meta.innerHTML += " · removed "+(entry.from==="v1"?"earlier":fmt(entry.date))+
+      ((entry.swapIn!==null&&entry.swapIn!==undefined)
+        ? ' · <span style="color:var(--seen)">replaced by '+F(entry.swapIn).title+"</span>" : "");
     ul.appendChild(li);
   });
 }
@@ -1438,15 +1449,83 @@ function applyBackdrop(){
   }
   el.style.opacity = (state.bgDim===undefined?70:state.bgDim)/100;
 }
+let railFilm=null;
+function renderRails(){
+  const L=document.getElementById("railLeft"), R=document.getElementById("railRight");
+  if(!L||!R) return;
+  const shelf=onShelf();
+  const unseen=shelf.filter(f=>!isWatched(f.id) && !seenOf(f.id).nate);
+  const mins=Object.keys(state.watched).reduce((a,id)=>a+F(id).mins,0);
+
+  // ---- left: what the collection is made of ----
+  const byGenre=GENRES.filter(g=>g!=="All").map(g=>({g,n:shelf.filter(f=>f.genre===g).length,
+                                                     left:unseen.filter(f=>f.genre===g).length}))
+                      .filter(x=>x.n).sort((a,b)=>b.n-a.n);
+  const decades={};
+  shelf.forEach(f=>{ const d=Math.floor(f.year/10)*10; decades[d]=(decades[d]||0)+1; });
+  const certs={};
+  shelf.forEach(f=>{ certs[f.cert]=(certs[f.cert]||0)+1; });
+  const longest=shelf.slice().sort((a,b)=>b.mins-a.mins)[0];
+  const shortest=shelf.slice().sort((a,b)=>a.mins-b.mins)[0];
+
+  L.innerHTML=
+    '<div class="box"><h4>The collection</h4>'+
+      '<div class="statline"><span>On the shelf</span><b>'+shelf.length+'</b></div>'+
+      '<div class="statline"><span>Nate still to see</span><b>'+unseen.length+'</b></div>'+
+      '<div class="statline"><span>Watched</span><b>'+Object.keys(state.watched).length+'</b></div>'+
+      '<div class="statline"><span>Hours watched</span><b>'+Math.round(mins/60)+'</b></div>'+
+      '<div class="statline"><span>Votes cast</span><b>'+
+        Object.keys(state.picks||{}).reduce((a,k)=>a+pickCount(k),0)+'</b></div>'+
+    '</div>'+
+    '<div class="box"><h4>By genre</h4>'+
+      byGenre.map(x=>'<div class="statline"><span>'+x.g+'</span><b>'+x.left+' / '+x.n+'</b></div>'+
+        '<div class="bar"><span style="width:'+Math.round((1-x.left/x.n)*100)+'%;background:var(--seen)"></span></div>').join("")+
+      '<p class="note" style="margin:2px 0 0;font-size:11.5px">Left to see / total</p>'+
+    '</div>'+
+    '<div class="box"><h4>By decade</h4>'+
+      Object.keys(decades).sort().map(d=>'<div class="statline"><span>'+d+'s</span><b>'+decades[d]+'</b></div>').join("")+
+    '</div>'+
+    '<div class="box"><h4>Certificates</h4>'+
+      Object.keys(certs).sort().map(c=>'<div class="statline"><span>'+c+'</span><b>'+certs[c]+'</b></div>').join("")+
+      '<div class="statline" style="margin-top:8px"><span>Longest</span><b>'+longest.mins+' min</b></div>'+
+      '<div class="statline"><span>Shortest</span><b>'+shortest.mins+' min</b></div>'+
+    '</div>';
+
+  // ---- right: the film you last opened, plus tonight's suggestion ----
+  const pick = railFilm!==null && state.shelf.indexOf(railFilm)>-1 ? F(railFilm)
+             : unseen.slice().sort(queueOrder)[0];
+  if(!pick){ R.innerHTML='<div class="box"><h4>Nothing selected</h4><p class="note">Open a film to see its details here.</p></div>'; return; }
+  const r=ratOf(pick.id)||{};
+  const wants=PEOPLE.filter(x=>picksOf(pick.id)[x.k]);
+  const seens=PEOPLE.filter(x=>seenOf(pick.id)[x.k]);
+  R.innerHTML=
+    '<div class="box">'+
+      '<h4>'+(railFilm!==null?'Selected':'Top of the queue')+'</h4>'+
+      '<span class="railart">'+posterFor(pick)+'</span>'+
+      '<p style="font-weight:600;font-size:15.5px;line-height:1.3;margin:0 0 7px">'+pick.title+'</p>'+
+      '<div class="statline"><span>'+pick.genre+' · '+pick.year+'</span><b>'+pick.cert+'</b></div>'+
+      '<div class="statline"><span>Running time</span><b>'+pick.mins+' min</b></div>'+
+      '<div class="statline"><span>IMDb</span><b>'+(r.imdb||pick.rating.toFixed(1))+'</b></div>'+
+      (r.rt?'<div class="statline"><span>Rotten Tomatoes</span><b class="rt" style="color:var(--warm)">'+r.rt+'</b></div>':'')+
+      (r.mc?'<div class="statline"><span>Metacritic</span><b>'+r.mc+'</b></div>':'')+
+      '<p class="note" style="margin:10px 0 0;font-size:12.5px">'+pick.blurb+'</p>'+
+    '</div>'+
+    '<div class="box"><h4>Who</h4>'+
+      '<div class="statline"><span>Wants to watch</span><b>'+(wants.length?wants.map(x=>x.n).join(", "):"nobody yet")+'</b></div>'+
+      '<div class="statline"><span>Has watched</span><b>'+(seens.length?seens.map(x=>x.n).join(", "):"nobody yet")+'</b></div>'+
+      (tagOf(pick.id)?'<div class="statline"><span>Tagged</span><b>'+TAGS[tagOf(pick.id)]+'</b></div>':'')+
+    '</div>';
+}
 function render(){
   applyBackdrop();
-  renderWant(); renderPerson(); renderAgain();
+  renderWant(); renderPerson(); renderAgain(); renderRails();
   document.getElementById("tmdbNote").hidden = !tmdbKey();
   renderCounts(); renderChips(); renderList(); renderNext(); renderWatched(); renderRemoved();
 }
 
 /* ---------- sheet ---------- */
 function openSheet(id){
+  railFilm=id; renderRails();
   const f=F(id), bg=document.getElementById("sheetBg"), s=document.getElementById("sheet");
   bg.dataset.film=id;
   const t=tagOf(id);
