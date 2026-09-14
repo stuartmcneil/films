@@ -273,6 +273,10 @@
       padding:14px 15px;margin-bottom:14px;backdrop-filter:blur(5px)}
     .statline{display:flex;justify-content:space-between;gap:10px;padding:4px 0;color:var(--muted)}
     .statline b{color:var(--paper);font-weight:600}
+    .statline.pickable{cursor:pointer;border-radius:6px;padding:5px 7px;margin:0 -7px;transition:background .12s}
+    .statline.pickable:hover{background:rgba(245,166,35,.10);color:var(--paper)}
+    .statline.on{background:var(--marquee);color:#17130a}
+    .statline.on b{color:#17130a}
     .bar{height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin:6px 0 11px}
     .bar span{display:block;height:100%}
     .railart{width:100%;border-radius:8px;overflow:hidden;margin-bottom:11px;display:block}
@@ -707,7 +711,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.4";
+const APP_VERSION = "5.5";
 const KEY = "nate-film-catalogue-v2";
 const SVG = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -734,7 +738,7 @@ let state = {
   saveNo: 0,     // increments every time a backup file is written
   savedAt: null  // when that last backup was written
 };
-let ui = {tab:"catalogue", genre:"All", person:"any", want:"any", seenWho:"nate", sort:"queue", hide:true};
+let ui = {tab:"catalogue", genre:"All", person:"any", want:"any", seenWho:"nate", sort:"queue", hide:true, decade:null, cert:null};
 
 /* ---------- storage ---------- */
 /* Two places to save. Inside Claude there's window.storage; in an ordinary
@@ -1259,6 +1263,8 @@ function renderList(){
 
   let films = onShelf();
   if(ui.genre!=="All") films=films.filter(f=>f.genre===ui.genre);
+  if(ui.decade!==null) films=films.filter(f=>Math.floor(f.year/10)*10===ui.decade);
+  if(ui.cert!==null) films=films.filter(f=>f.cert===ui.cert);
   if(ui.person==="all") films=films.filter(f=>pickCount(f.id)===PEOPLE.length);
   else if(ui.person!=="any") films=films.filter(f=>picksOf(f.id)[ui.person]);
   // Off the front page once Nate has seen it (or the household has ticked it)
@@ -1457,56 +1463,28 @@ function renderRails(){
   const unseen=shelf.filter(f=>!isWatched(f.id) && !seenOf(f.id).nate);
   const mins=Object.keys(state.watched).reduce((a,id)=>a+F(id).mins,0);
 
-  // ---- left: what the collection is made of ----
-  const byGenre=GENRES.filter(g=>g!=="All").map(g=>({g,n:shelf.filter(f=>f.genre===g).length,
-                                                     left:unseen.filter(f=>f.genre===g).length}))
-                      .filter(x=>x.n).sort((a,b)=>b.n-a.n);
-  const decades={};
-  shelf.forEach(f=>{ const d=Math.floor(f.year/10)*10; decades[d]=(decades[d]||0)+1; });
-  const certs={};
-  shelf.forEach(f=>{ certs[f.cert]=(certs[f.cert]||0)+1; });
-  const longest=shelf.slice().sort((a,b)=>b.mins-a.mins)[0];
-  const shortest=shelf.slice().sort((a,b)=>a.mins-b.mins)[0];
+  const shelfCount=shelf.length;
+  const row=(label,val,on,fn)=>{
+    const cls="statline"+(fn?" pickable":"")+(on?" on":"");
+    return '<div class="'+cls+'"'+(fn?' data-act="'+fn+'"':'')+'><span>'+label+'</span><b>'+val+'</b></div>';
+  };
 
-  L.innerHTML=
-    '<div class="box"><h4>The collection</h4>'+
-      '<div class="statline"><span>On the shelf</span><b>'+shelf.length+'</b></div>'+
-      '<div class="statline"><span>Nate still to see</span><b>'+unseen.length+'</b></div>'+
-      '<div class="statline"><span>Watched</span><b>'+Object.keys(state.watched).length+'</b></div>'+
-      '<div class="statline"><span>Hours watched</span><b>'+Math.round(mins/60)+'</b></div>'+
-      '<div class="statline"><span>Votes cast</span><b>'+
-        Object.keys(state.picks||{}).reduce((a,k)=>a+pickCount(k),0)+'</b></div>'+
-    '</div>'+
-    '<div class="box"><h4>By genre</h4>'+
-      byGenre.map(x=>'<div class="statline"><span>'+x.g+'</span><b>'+x.left+' / '+x.n+'</b></div>'+
-        '<div class="bar"><span style="width:'+Math.round((1-x.left/x.n)*100)+'%;background:var(--seen)"></span></div>').join("")+
-      '<p class="note" style="margin:2px 0 0;font-size:11.5px">Left to see / total</p>'+
-    '</div>'+
-    '<div class="box"><h4>By decade</h4>'+
-      Object.keys(decades).sort().map(d=>'<div class="statline"><span>'+d+'s</span><b>'+decades[d]+'</b></div>').join("")+
-    '</div>'+
-    '<div class="box"><h4>Certificates</h4>'+
-      Object.keys(certs).sort().map(c=>'<div class="statline"><span>'+c+'</span><b>'+certs[c]+'</b></div>').join("")+
-      '<div class="statline" style="margin-top:8px"><span>Longest</span><b>'+longest.mins+' min</b></div>'+
-      '<div class="statline"><span>Shortest</span><b>'+shortest.mins+' min</b></div>'+
-    '</div>';
-
-  // ---- right: the film you last opened, plus tonight's suggestion ----
+  // ---- left: the film in focus, then who, then the totals ----
   const pick = railFilm!==null && state.shelf.indexOf(railFilm)>-1 ? F(railFilm)
              : unseen.slice().sort(queueOrder)[0];
-  if(!pick){ R.innerHTML='<div class="box"><h4>Nothing selected</h4><p class="note">Open a film to see its details here.</p></div>'; return; }
-  const r=ratOf(pick.id)||{};
-  const wants=PEOPLE.filter(x=>picksOf(pick.id)[x.k]);
-  const seens=PEOPLE.filter(x=>seenOf(pick.id)[x.k]);
-  R.innerHTML=
-    '<div class="box">'+
+  let left="";
+  if(pick){
+    const r=ratOf(pick.id)||{};
+    const wants=PEOPLE.filter(x=>picksOf(pick.id)[x.k]);
+    const seens=PEOPLE.filter(x=>seenOf(pick.id)[x.k]);
+    left+='<div class="box">'+
       '<h4>'+(railFilm!==null?'Selected':'Top of the queue')+'</h4>'+
       '<span class="railart">'+posterFor(pick)+'</span>'+
       '<p style="font-weight:600;font-size:15.5px;line-height:1.3;margin:0 0 7px">'+pick.title+'</p>'+
       '<div class="statline"><span>'+pick.genre+' · '+pick.year+'</span><b>'+pick.cert+'</b></div>'+
       '<div class="statline"><span>Running time</span><b>'+pick.mins+' min</b></div>'+
       '<div class="statline"><span>IMDb</span><b>'+(r.imdb||pick.rating.toFixed(1))+'</b></div>'+
-      (r.rt?'<div class="statline"><span>Rotten Tomatoes</span><b class="rt" style="color:var(--warm)">'+r.rt+'</b></div>':'')+
+      (r.rt?'<div class="statline"><span>Rotten Tomatoes</span><b style="color:var(--warm)">'+r.rt+'</b></div>':'')+
       (r.mc?'<div class="statline"><span>Metacritic</span><b>'+r.mc+'</b></div>':'')+
       '<p class="note" style="margin:10px 0 0;font-size:12.5px">'+pick.blurb+'</p>'+
     '</div>'+
@@ -1515,6 +1493,60 @@ function renderRails(){
       '<div class="statline"><span>Has watched</span><b>'+(seens.length?seens.map(x=>x.n).join(", "):"nobody yet")+'</b></div>'+
       (tagOf(pick.id)?'<div class="statline"><span>Tagged</span><b>'+TAGS[tagOf(pick.id)]+'</b></div>':'')+
     '</div>';
+  }
+  left+='<div class="box"><h4>The collection</h4>'+
+      '<div class="statline"><span>On the shelf</span><b>'+shelfCount+'</b></div>'+
+      '<div class="statline"><span>Nate still to see</span><b>'+unseen.length+'</b></div>'+
+      '<div class="statline"><span>Watched</span><b>'+Object.keys(state.watched).length+'</b></div>'+
+      '<div class="statline"><span>Hours watched</span><b>'+Math.round(mins/60)+'</b></div>'+
+      '<div class="statline"><span>Votes cast</span><b>'+
+        Object.keys(state.picks||{}).reduce((a,k)=>a+pickCount(k),0)+'</b></div>'+
+    '</div>';
+  L.innerHTML=left;
+
+  // ---- right: filters you can click ----
+  const byGenre=GENRES.filter(g=>g!=="All").map(g=>({g,n:shelf.filter(f=>f.genre===g).length,
+                                                     left:unseen.filter(f=>f.genre===g).length}))
+                      .filter(x=>x.n).sort((a,b)=>b.n-a.n);
+  const decades={}; shelf.forEach(f=>{ const d=Math.floor(f.year/10)*10; decades[d]=(decades[d]||0)+1; });
+  const certs={};   shelf.forEach(f=>{ certs[f.cert]=(certs[f.cert]||0)+1; });
+  const anyFilter = ui.genre!=="All" || ui.decade!==null || ui.cert!==null;
+
+  R.innerHTML=
+    (anyFilter?'<div class="box" style="border-color:rgba(245,166,35,.5)">'+
+      '<h4>Filtering</h4>'+
+      '<div class="statline"><span>'+
+        [ui.genre!=="All"?ui.genre:null, ui.decade!==null?ui.decade+"s":null, ui.cert!==null?ui.cert:null]
+        .filter(Boolean).join(" · ")+'</span><b>'+document.querySelectorAll("#list li.film").length+'</b></div>'+
+      '<button class="mini" id="clearFilters" style="width:100%;margin-top:8px">Clear filters</button>'+
+    '</div>':'')+
+    '<div class="box"><h4>By genre</h4>'+
+      byGenre.map(x=>row(x.g, x.left+" / "+x.n, ui.genre===x.g, "g:"+x.g)+
+        '<div class="bar"><span style="width:'+Math.round((1-x.left/x.n)*100)+'%;background:var(--seen)"></span></div>').join("")+
+      '<p class="note" style="margin:2px 0 0;font-size:11.5px">Left to see / total. Tap to filter.</p>'+
+    '</div>'+
+    '<div class="box"><h4>By decade</h4>'+
+      Object.keys(decades).sort().map(dd=>row(dd+"s", decades[dd], ui.decade===+dd, "d:"+dd)).join("")+
+    '</div>'+
+    '<div class="box"><h4>Certificate</h4>'+
+      Object.keys(certs).sort().map(c=>row(c, certs[c], ui.cert===c, "c:"+c)).join("")+
+    '</div>';
+
+  R.querySelectorAll("[data-act]").forEach(el=>{
+    el.onclick=()=>{
+      const [kind,val]=el.dataset.act.split(":");
+      if(kind==="g") ui.genre = (ui.genre===val ? "All" : val);
+      if(kind==="d") ui.decade = (ui.decade===+val ? null : +val);
+      if(kind==="c") ui.cert = (ui.cert===val ? null : val);
+      ui.tab="catalogue";
+      document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab==="catalogue"));
+      ["catalogue","next","want","watched","again","person","removed"].forEach(pp=>{
+        document.getElementById("panel-"+pp).hidden = pp!=="catalogue"; });
+      render();
+    };
+  });
+  const cf=R.querySelector("#clearFilters");
+  if(cf) cf.onclick=()=>{ ui.genre="All"; ui.decade=null; ui.cert=null; render(); };
 }
 function render(){
   applyBackdrop();
