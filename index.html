@@ -104,6 +104,9 @@
   .badge.new{background:rgba(78,201,164,.16);color:var(--seen)}
   .badge.again{background:rgba(180,140,235,.18);color:#c3a2f0}
   .film-main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .pager{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0 12px;font-size:13px;color:var(--muted)}
+  .pager .mini:disabled{opacity:.35;cursor:default}
+  #pageNum{font-family:var(--display);letter-spacing:.08em;text-transform:uppercase;font-size:12px;color:var(--paper)}
   .rank{flex:0 0 auto;font-family:var(--display);font-size:20px;font-weight:700;color:var(--marquee-dim);
     width:30px;text-align:center;margin-top:3px;line-height:1}
   .rowart{flex:0 0 auto;cursor:pointer;display:block;line-height:0}
@@ -379,6 +382,12 @@
       <label class="toggle"><input type="checkbox" id="hideWatched" checked> Show seen films too</label>
     </div>
     <button class="bulk" id="bulk" hidden></button>
+    <div class="pager" id="pager" hidden>
+      <button class="mini" id="pagePrev">‹ Previous</button>
+      <span id="pageNum"></span>
+      <button class="mini" id="pageNext">Next ›</button>
+      <span id="pageInfo" class="note" style="margin:0"></span>
+    </div>
     <ul class="films" id="list"><li class="empty">If this is all you can see, the page's script hasn't run. Cloud storage previews (OneDrive, Google Drive, SharePoint) block scripts in files they display. Download the file and open it from your device instead.</li></ul>
   </section>
 
@@ -755,7 +764,8 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.11";
+const APP_VERSION = "5.12";
+const PAGE = 40;
 const KEY = "nate-film-catalogue-v2";
 const SVG = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -782,7 +792,7 @@ let state = {
   saveNo: 0,     // increments every time a backup file is written
   savedAt: null  // when that last backup was written
 };
-let ui = {tab:"catalogue", genre:"All", person:"any", want:"any", seenWho:"nate", sort:"queue", hide:true, decade:null, cert:null};
+let ui = {page:0, tab:"catalogue", genre:"All", person:"any", want:"any", seenWho:"nate", sort:"queue", hide:true, decade:null, cert:null};
 
 /* ---------- storage ---------- */
 /* Two places to save. Inside Claude there's window.storage; in an ordinary
@@ -989,6 +999,8 @@ const TMDB_KEY_STORE="nate-tmdb-key";
 const tmdbKey = () => lsGet(TMDB_KEY_STORE) || "";
 const POSTER_TTL = 150*24*3600*1000;   // under TMDB's six-month caching limit
 let posterQueue=[], posterBusy=false;
+let memPosters={};   // used when nothing is to be kept between visits
+const posterStore = () => state.posterMode==="fresh" ? memPosters : (state.posters=state.posters||{});
 
 function posterFor(f,extra){
   const cls="poster"+(extra?" "+extra:"");
@@ -998,7 +1010,7 @@ function posterFor(f,extra){
            'onerror="this.replaceWith(document.createRange().createContextualFragment(this.dataset.fb))" '+
            'data-fb="'+posterTile(f,extra).replace(/"/g,"&quot;")+'">';
   }
-  const p=(state.posters||{})[f.id];
+  const p=posterStore()[f.id];
   const fresh = p && (Date.now()-p.at) < POSTER_TTL;
   if(fresh && p.path){
     const size = extra && /\blg\b/.test(extra) ? "w342" : "w154";
@@ -1036,21 +1048,20 @@ async function runPosterQueue(){
       if(!r.ok) throw new Error(String(r.status));
       const j=await r.json();
       const hit=(j.results||[])[0];
-      state.posters=state.posters||{};
-      state.posters[id]={path:(hit&&hit.poster_path)||null, at:Date.now()};
+      posterStore()[id]={path:(hit&&hit.poster_path)||null, at:Date.now()};
       got++;
-      if(got%4===0){ suppressCloud=true; save(); suppressCloud=false; renderNext(); }
+      if(got%4===0){ if(state.posterMode!=="fresh"){ suppressCloud=true; save(); suppressCloud=false; } render(); }
     }catch(e){ posterQueue=[]; break; }
     await new Promise(res=>setTimeout(res,70));
   }
   posterBusy=false;
-  if(got){ suppressCloud=true; save(); suppressCloud=false; renderNext(); }
+  if(got){ if(state.posterMode!=="fresh"){ suppressCloud=true; save(); suppressCloud=false; } render(); }
 }
 async function fetchAllPosters(){
   if(!tmdbKey()){ toast("Add a TMDB key first."); return; }
   toast("Looking up posters — this takes a minute.");
   onShelf().forEach(f=>{
-    const p=(state.posters||{})[f.id];
+    const p=posterStore()[f.id];
     if(!p || (Date.now()-p.at)>POSTER_TTL) queuePoster(f.id);
   });
 }
@@ -1196,7 +1207,7 @@ function renderPeopleChips(){
     b.setAttribute("aria-pressed", ui.person===o.k);
     b.textContent=o.label+" "+n;
     if(ui.person===o.k && o.c){ b.style.background=o.c; b.style.borderColor=o.c; b.style.color="#12151d"; }
-    b.onclick=()=>{ ui.person=o.k; render(); };
+    b.onclick=()=>{ ui.person=o.k; ui.page=0; render(); };
     box.appendChild(b);
   });
 }
@@ -1227,7 +1238,7 @@ function renderChips(){
     b.className="chip"; b.type="button";
     b.setAttribute("aria-pressed", ui.genre===g);
     b.textContent=g+" "+n;
-    b.onclick=()=>{ui.genre=g;render();};
+    b.onclick=()=>{ui.genre=g;ui.page=0;render();};
     box.appendChild(b);
   });
 }
@@ -1322,9 +1333,21 @@ function renderList(){
   if(ui.hide) films=films.filter(f=>!isWatched(f.id) && !seenOf(f.id).nate);
   films = sortFilms(films);
 
-  if(!films.length){ ul.innerHTML='<li class="empty">Nothing here. Try another genre, or untick "hide watched".</li>'; return; }
-
-  films.forEach(f=>ul.appendChild(filmRow(f)));
+  const pager=document.getElementById("pager");
+  if(!films.length){
+    ul.innerHTML='<li class="empty">Nothing here. Try another genre, or clear the filters.</li>';
+    pager.hidden=true; return;
+  }
+  const pages=Math.ceil(films.length/PAGE);
+  if(ui.page>=pages) ui.page=pages-1;
+  if(ui.page<0) ui.page=0;
+  const from=ui.page*PAGE, to=Math.min(from+PAGE, films.length);
+  films.slice(from,to).forEach(f=>ul.appendChild(filmRow(f)));
+  pager.hidden = pages<=1;
+  document.getElementById("pageInfo").textContent="Showing "+(from+1)+"–"+to+" of "+films.length;
+  document.getElementById("pagePrev").disabled = ui.page===0;
+  document.getElementById("pageNext").disabled = ui.page>=pages-1;
+  document.getElementById("pageNum").textContent="Page "+(ui.page+1)+" of "+pages;
 }
 
 function renderNext(){
@@ -1574,7 +1597,7 @@ function renderRails(){
       if(kind==="g") ui.genre = (ui.genre===val ? "All" : val);
       if(kind==="d") ui.decade = (ui.decade===+val ? null : +val);
       if(kind==="c") ui.cert = (ui.cert===val ? null : val);
-      ui.tab="catalogue";
+      ui.tab="catalogue"; ui.page=0;
       document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab==="catalogue"));
       ["catalogue","next","want","watched","again","person","removed"].forEach(pp=>{
         document.getElementById("panel-"+pp).hidden = pp!=="catalogue"; });
@@ -1939,7 +1962,8 @@ function backupPayload(n){
                          save:n, saved:new Date().toISOString(),
                          shelf:state.shelf, watched:state.watched, tags:state.tags, log:state.log,
                          picks:state.picks||{}, seen:state.seen||{}, rat:state.rat||{},
-                         art:state.art||{}, posters:state.posters||{},
+                         art:state.art||{}, posters:(state.posterMode==="fresh"?{}:(state.posters||{})),
+                         posterMode:state.posterMode||"keep",
                          ov:state.ov||{}, ovOn:!!state.ovOn,
                          bg:state.bg||"", bgDim:state.bgDim, localPosters:!!state.localPosters});  // bgLocal stays on the device
 }
@@ -1987,6 +2011,7 @@ function applyState(obj){
   if(obj.bg!==undefined)   state.bg   = obj.bg;
   if(obj.bgDim!==undefined) state.bgDim = obj.bgDim;
   if(obj.localPosters!==undefined) state.localPosters = obj.localPosters;
+  if(obj.posterMode!==undefined) state.posterMode = obj.posterMode;
   state.saveNo = obj.save || 0;
   state.savedAt = obj.saved || null;
   // A save written before the 50 additions won't list them — add them back in
@@ -2059,7 +2084,12 @@ function openBackup(){
     : '<p>Rotten Tomatoes and Metacritic have no public API, and neither does Letterboxd or the BBC. OMDb collects all three scores legitimately and gives a free key — 1,000 lookups a day, which covers all 200 films twice over.</p>'+
       '<input class="idin" id="omKey" placeholder="OMDb API key" spellcheck="false">'+
       '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="omSave">Turn on scores</button></div>';
-  const localHtml = '<p style="margin-top:12px">If you save poster files into a <b>posters</b> folder in the <b>films</b> repo, named by film number — <b>posters/0.jpg</b>, <b>posters/1.jpg</b> and so on — the app loads those first and only goes to TMDB for any that are missing. Film numbers are shown in each film\'s panel.</p>'+
+  const modeHtml = '<p style="margin-top:12px"><b>'+(state.posterMode==="fresh"?"Looking up fresh each visit.":"Remembering which poster goes with which film.")+'</b> '+
+    (state.posterMode==="fresh"
+      ? 'Nothing poster-related is saved. Each page you open looks up its films on the spot.'
+      : 'Only the poster path is kept — a short address, not the picture — so other devices skip the lookup.')+'</p>'+
+    '<div class="sheet-actions"><button class="btn" id="tmMode">'+(state.posterMode==="fresh"?"Remember posters instead":"Look up fresh each visit")+'</button></div>';
+  const localHtml = modeHtml+'<p style="margin-top:12px">If you save poster files into a <b>posters</b> folder in the <b>films</b> repo, named by film number — <b>posters/0.jpg</b>, <b>posters/1.jpg</b> and so on — the app loads those first and only goes to TMDB for any that are missing. Film numbers are shown in each film\'s panel.</p>'+
     '<div class="sheet-actions"><button class="btn '+(state.localPosters?"done":"")+'" id="tmLocal">'+
     (state.localPosters?"Using posters folder ✓ — turn off":"Use a posters folder in the repo")+'</button></div>';
   const postersHtml = (tmdbKey()
@@ -2168,6 +2198,10 @@ function openBackup(){
     lsSet(TMDB_KEY_STORE,v); openBackup(); render(); fetchAllPosters();
   });
   on("#tmAll", fetchAllPosters);
+  on("#tmMode", ()=>{ state.posterMode = state.posterMode==="fresh" ? "keep" : "fresh";
+                      if(state.posterMode==="fresh"){ memPosters={}; state.posters={}; }
+                      save(); openBackup(); render();
+                      toast(state.posterMode==="fresh"?"Posters now looked up fresh each visit.":"Poster paths will be remembered."); });
   on("#tmLocal", ()=>{ state.localPosters=!state.localPosters; save(); openBackup(); render();
                        toast(state.localPosters?"Looking in posters/ first.":"Back to TMDB only."); });
   on("#tmOff", ()=>{ lsSet(TMDB_KEY_STORE,""); state.posters={}; save(); openBackup(); render();
@@ -2248,8 +2282,10 @@ document.getElementById("fileIn").onchange=e=>{
   e.target.value="";
 };
 
-document.getElementById("sort").onchange=e=>{ui.sort=e.target.value;renderList();};
-document.getElementById("hideWatched").onchange=e=>{ui.hide=!e.target.checked;renderList();};
+document.getElementById("sort").onchange=e=>{ui.sort=e.target.value;ui.page=0;renderList();};
+document.getElementById("pagePrev").onclick=()=>{ui.page--;renderList();window.scrollTo({top:0,behavior:"smooth"});};
+document.getElementById("pageNext").onclick=()=>{ui.page++;renderList();window.scrollTo({top:0,behavior:"smooth"});};
+document.getElementById("hideWatched").onchange=e=>{ui.hide=!e.target.checked;ui.page=0;renderList();};
 document.getElementById("appVer").textContent="Catalogue app v"+APP_VERSION;
 document.getElementById("importV1").onclick=()=>migrateFromV1(true);
 
