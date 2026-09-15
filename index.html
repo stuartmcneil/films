@@ -209,8 +209,10 @@
     select,.toggle{font-size:14.5px}
     select{padding:10px 13px}
 
-    .five{overflow-x:auto;padding:8px 0 22px;margin:0;gap:18px 16px;grid-auto-columns:162px}
-    .poster.lg{width:162px;height:237px;flex:0 0 162px}
+    .five{grid-auto-flow:row;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:auto;
+      grid-auto-columns:auto;overflow:visible;padding:8px 0 22px;margin:0;gap:20px 18px}
+    .five-card{width:100%}
+    .poster.lg{width:100%;height:auto;aspect-ratio:2/3;flex:none}
     .poster.lg .poster-ini{font-size:42px}
     .poster.lg .poster-yr{font-size:13px}
 
@@ -357,7 +359,7 @@
   <section id="panel-catalogue">
     <div id="fiveWrap">
       <p class="section-head" style="margin:16px 0 4px">Top of the queue</p>
-      <p class="note" id="fiveNote">Ranked by how many of you want it, then by rating. Scroll sideways for more.</p>
+      <p class="note" id="fiveNote">Ranked by how many of you want it, then by reviews.</p>
       <div class="five" id="five"></div>
     </div>
     <div class="chips" id="peopleChips"></div>
@@ -753,7 +755,7 @@ const TAGS = {fav:"Favourite", again:"Watch again", maybe:"Maybe later", no:"Not
 const PEOPLE = [{k:"stu",n:"Stu",i:"S",c:"#f5a623"},
                 {k:"nate",n:"Nate",i:"N",c:"#4ec9a4"},
                 {k:"caroline",n:"Caroline",i:"C",c:"#b48ceb"}];
-const APP_VERSION = "5.9";
+const APP_VERSION = "5.11";
 const KEY = "nate-film-catalogue-v2";
 const SVG = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -998,10 +1000,16 @@ function posterFor(f,extra){
   }
   const p=(state.posters||{})[f.id];
   const fresh = p && (Date.now()-p.at) < POSTER_TTL;
-  if(fresh && p.path)
-    return '<img class="'+cls+'" src="https://image.tmdb.org/t/p/w342'+p.path+'" alt="" loading="lazy" '+
-           'onerror="this.replaceWith(document.createRange().createContextualFragment(this.dataset.fb))" '+
+  if(fresh && p.path){
+    const size = extra && /\blg\b/.test(extra) ? "w342" : "w154";
+    const tmdbUrl = "https://image.tmdb.org/t/p/"+size+p.path;
+    const localUrl = state.localPosters ? "posters/"+f.id+".jpg" : null;
+    return '<img class="'+cls+'" src="'+(localUrl||tmdbUrl)+'" alt="" loading="lazy" decoding="async" '+
+           (localUrl ? 'data-next="'+tmdbUrl+'" ' : '')+
+           'onerror="if(this.dataset.next){this.src=this.dataset.next;this.removeAttribute(\'data-next\');}'+
+           'else{this.replaceWith(document.createRange().createContextualFragment(this.dataset.fb))}" '+
            'data-fb="'+posterTile(f,extra).replace(/"/g,"&quot;")+'">';
+  }
   if(tmdbKey() && !fresh) queuePoster(f.id);
   const ov=ovFor(f);
   if(ov){
@@ -1195,7 +1203,7 @@ function renderPeopleChips(){
 function renderFive(){
   const box=document.getElementById("five"); box.innerHTML="";
   const top=onShelf().filter(f=>!isWatched(f.id) && !seenOf(f.id).nate && tagOf(f.id)!=="no")
-    .sort(queueOrder).slice(0,12);
+    .sort(queueOrder).slice(0,10);
   document.getElementById("fiveWrap").hidden = top.length===0;
   top.forEach((f,i)=>{
     const b=document.createElement("button"); b.className="five-card"; b.type="button";
@@ -1591,6 +1599,7 @@ function openSheet(id){
   const t=tagOf(id);
   s.innerHTML='<h2 id="sheetTitle"></h2>'+
     '<div class="facts">'+
+      '<span class="fact">No. <b>'+f.id+'</b></span>'+
       '<span class="fact"><b>'+f.year+'</b></span>'+
       '<span class="fact">Certificate <b>'+f.cert+'</b></span>'+
       '<span class="fact">Runs <b>'+f.mins+' min</b></span>'+
@@ -1932,7 +1941,7 @@ function backupPayload(n){
                          picks:state.picks||{}, seen:state.seen||{}, rat:state.rat||{},
                          art:state.art||{}, posters:state.posters||{},
                          ov:state.ov||{}, ovOn:!!state.ovOn,
-                         bg:state.bg||"", bgDim:state.bgDim});  // bgLocal stays on the device
+                         bg:state.bg||"", bgDim:state.bgDim, localPosters:!!state.localPosters});  // bgLocal stays on the device
 }
 function commitSave(n){
   state.saveNo = n;
@@ -1977,6 +1986,7 @@ function applyState(obj){
   if(obj.ovOn!==undefined) state.ovOn = obj.ovOn;
   if(obj.bg!==undefined)   state.bg   = obj.bg;
   if(obj.bgDim!==undefined) state.bgDim = obj.bgDim;
+  if(obj.localPosters!==undefined) state.localPosters = obj.localPosters;
   state.saveNo = obj.save || 0;
   state.savedAt = obj.saved || null;
   // A save written before the 50 additions won't list them — add them back in
@@ -2049,13 +2059,16 @@ function openBackup(){
     : '<p>Rotten Tomatoes and Metacritic have no public API, and neither does Letterboxd or the BBC. OMDb collects all three scores legitimately and gives a free key — 1,000 lookups a day, which covers all 200 films twice over.</p>'+
       '<input class="idin" id="omKey" placeholder="OMDb API key" spellcheck="false">'+
       '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="omSave">Turn on scores</button></div>';
-  const postersHtml = tmdbKey()
+  const localHtml = '<p style="margin-top:12px">If you save poster files into a <b>posters</b> folder in the <b>films</b> repo, named by film number — <b>posters/0.jpg</b>, <b>posters/1.jpg</b> and so on — the app loads those first and only goes to TMDB for any that are missing. Film numbers are shown in each film\'s panel.</p>'+
+    '<div class="sheet-actions"><button class="btn '+(state.localPosters?"done":"")+'" id="tmLocal">'+
+    (state.localPosters?"Using posters folder ✓ — turn off":"Use a posters folder in the repo")+'</button></div>';
+  const postersHtml = (tmdbKey()
     ? '<p>Poster artwork is on, from The Movie Database. '+nP+' found so far. Films without a match keep their generated tile.</p>'+
       '<div class="sheet-actions"><button class="btn primary" id="tmAll">Fetch all posters</button>'+
-      '<button class="btn danger" id="tmOff">Turn off posters</button></div>'
+      '<button class="btn danger" id="tmOff">Turn off posters</button></div>'+localHtml
     : '<p>Real poster artwork needs a free key from The Movie Database — IMDb has no free API. Setup notes explain where to get one. Without a key the app draws its own tiles.</p>'+
       '<input class="idin" id="tmKey" placeholder="TMDB API key" spellcheck="false" autocomplete="off">'+
-      '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="tmSave">Turn on posters</button></div>';
+      '<div class="sheet-actions" style="margin-top:9px"><button class="btn primary" id="tmSave">Turn on posters</button></div>'+localHtml);
   const dim = state.bgDim===undefined?70:state.bgDim;
   const bgHtml = '<p>The built-in artwork is original — I can\'t use fan art of Dune, Star Wars or anything else, since it\'s built on studio-owned characters and designs. Point this at any image you have the right to use and it replaces the backdrop.</p>'+
     '<input class="idin" id="bgUrl" placeholder="https://… image address (leave empty for the built-in art)" spellcheck="false" value="'+(state.bg||"").replace(/"/g,"&quot;")+'">'+
@@ -2155,6 +2168,8 @@ function openBackup(){
     lsSet(TMDB_KEY_STORE,v); openBackup(); render(); fetchAllPosters();
   });
   on("#tmAll", fetchAllPosters);
+  on("#tmLocal", ()=>{ state.localPosters=!state.localPosters; save(); openBackup(); render();
+                       toast(state.localPosters?"Looking in posters/ first.":"Back to TMDB only."); });
   on("#tmOff", ()=>{ lsSet(TMDB_KEY_STORE,""); state.posters={}; save(); openBackup(); render();
                      toast("Posters off. Back to the generated tiles."); });
   on("#lkDir", linkFolder);
